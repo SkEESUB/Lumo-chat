@@ -1,4 +1,4 @@
-
+console.log("🔥 NEW VERSION DEPLOYED");
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';

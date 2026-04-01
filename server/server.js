@@ -1,3 +1,4 @@
+// TEST CHANGE 123
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -22,7 +23,6 @@ app.use(cors({
     "https://lumo-chat.vercel.app"
   ],
   methods: ["GET", "POST"],
-  credentials: true
 }));
 
 app.use(express.json());
@@ -42,7 +42,6 @@ const io = new Server(server, {
       "https://lumo-chat.vercel.app"
     ],
     methods: ["GET", "POST"],
-    credentials: true
   },
 });
 

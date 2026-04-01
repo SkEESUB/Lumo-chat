@@ -1,85 +1,34 @@
-console.log("🔥 NEW VERSION DEPLOYED");
-import express from 'express';
-import http from 'http';
-import { Server } from 'socket.io';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
-
-// ✅ Move imports to top (IMPORTANT)
-import { initializeSocket } from './socket.js';
-import { roomManager } from './roomManager.js';
-
-// Load environment variables
-dotenv.config();
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import cors from "cors";
 
 const app = express();
 const server = http.createServer(app);
 
-// ✅ PUT CORS HERE (TOP)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://lumo-chat.vercel.app");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+// ✅ 1. CORS FIRST (VERY IMPORTANT)
+app.use(cors({
+  origin: "https://lumo-chat.vercel.app"
+}));
 
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
-
-// KEEP THIS BELOW
+// ✅ 2. JSON
 app.use(express.json());
 
-// ✅ Rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-});
-app.use('/api', apiLimiter);
-
-// ✅ Socket setup
-const io = new Server(server, {
-  cors: {
-    origin: "https://lumo-chat.vercel.app",
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+// ✅ 3. TEST ROUTE (to check backend works)
+app.get("/", (req, res) => {
+  res.send("Backend is working");
 });
 
-// ✅ DEBUG: check socket working
-io.on("connection", (socket) => {
-  console.log("🔥 Socket connected:", socket.id);
+// ✅ 4. YOUR API ROUTE
+app.post("/api/rooms/create", (req, res) => {
+  res.json({
+    roomId: "12345",
+    code: "ABCD"
+  });
 });
 
-// ✅ Initialize your custom socket logic
-try {
-  initializeSocket(io);
-  console.log("✅ Socket initialized successfully");
-} catch (err) {
-  console.error("❌ Socket init failed:", err);
-}
-
-// ✅ API route
-app.post('/api/rooms/create', (req, res) => {
-  try {
-    const room = roomManager.createRoom();
-    console.log("✅ Room created:", room);
-    res.status(201).json(room);
-  } catch (err) {
-    console.error("❌ Room creation error:", err);
-    res.status(500).json({ error: "Failed to create room" });
-  }
-});
-
-// ✅ Test route
-app.get('/', (req, res) => {
-  res.send('Server is running.');
-});
-
-// ✅ Start server
+// ✅ 5. START SERVER
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("🔥 NEW VERSION DEPLOYED ON PORT", PORT);
 });

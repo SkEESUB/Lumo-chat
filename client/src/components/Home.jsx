@@ -32,11 +32,16 @@ export default function Home() {
     setError('');
 
     try {
-      const API_URL = import.meta.env.VITE_BACKEND_URL;
+      const API_URL = "https://lumo-backend-eknu.onrender.com";
 
       const res = await fetch(`${API_URL}/api/rooms/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.username || "guest"
+        }),
       });
 
       console.log("📡 API status:", res.status);

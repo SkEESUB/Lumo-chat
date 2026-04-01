@@ -17,8 +17,12 @@ const server = http.createServer(app);
 
 // ✅ CORS (make it explicit)
 app.use(cors({
-  origin: "http://localhost:5173",
-  methods: ['GET', 'POST']
+  origin: [
+    "http://localhost:5173",
+    "https://lumo-chat.vercel.app"
+  ],
+  methods: ["GET", "POST"],
+  credentials: true
 }));
 
 app.use(express.json());
@@ -33,8 +37,12 @@ app.use('/api', apiLimiter);
 // ✅ Socket setup
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ['GET', 'POST'],
+    origin: [
+      "http://localhost:5173",
+      "https://lumo-chat.vercel.app"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
   },
 });
 

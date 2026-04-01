@@ -27,7 +27,7 @@ app.use(cors({
   credentials: true
 }));
 
-app.options('*', cors());
+app.options('/*', cors());
 
 // KEEP THIS BELOW
 app.use(express.json());

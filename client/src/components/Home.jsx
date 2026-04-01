@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Users, Loader2, Sparkles } from 'lucide-react';
+import Logo from './ui/Logo';
+
 export default function Home() {
   const [isJoinMode, setIsJoinMode] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -105,15 +107,9 @@ export default function Home() {
         <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-br from-blue-500/10 to-cyan-400/5 blur-3xl rounded-full -translate-y-1/2 pointer-events-none"></div>
 
         {/* Lumo Logo */}
-        <div className="relative flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-white/20 rounded-2xl mb-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] shrink-0">
-          <motion.div
-            animate={{ scale: [1, 1.15, 1], opacity: [0.8, 1, 0.8] }}
-            transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-            className="w-7 h-7 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full shadow-[0_0_16px_rgba(34,211,238,0.8)]"
-          />
-        </div>
-
-        <h1 className="text-4xl font-extrabold mb-3 tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 text-transparent bg-clip-text">
+        <Logo className="w-32 md:w-40 lg:w-48 mb-6" />
+        
+        <h1 className="sr-only">
           Lumo
         </h1>
         <p className="text-gray-400 text-center mb-8 font-medium">

@@ -16,16 +16,13 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// 🔥 PASTE HERE
+// ✅ PUT CORS HERE (TOP)
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://lumo-chat.vercel.app"
-  ],
+  origin: "https://lumo-chat.vercel.app",
   methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type"],
   credentials: true
 }));
+app.options("*", cors());
 
 // KEEP THIS BELOW
 app.use(express.json());
@@ -40,13 +37,10 @@ app.use('/api', apiLimiter);
 // ✅ Socket setup
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "https://lumo-chat.vercel.app"
-    ],
+    origin: "https://lumo-chat.vercel.app",
     methods: ["GET", "POST"],
     credentials: true
-  },
+  }
 });
 
 // ✅ DEBUG: check socket working

@@ -20,7 +20,7 @@ export default function RoomInfoPanel({
 }) {
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Overlay Background */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -28,23 +28,23 @@ export default function RoomInfoPanel({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[4px] z-30"
           />
         )}
       </AnimatePresence>
 
-      {/* Panel */}
+      {/* Slide-in Panel */}
       <motion.div
         initial={{ x: '100%' }}
         animate={{ x: isOpen ? 0 : '100%' }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed top-0 right-0 h-full w-72 md:w-72 bg-slate-900/90 md:bg-black/20 backdrop-blur-xl md:backdrop-blur-md border-l border-white/10 flex flex-col p-6 z-40 transform md:relative md:transform-none md:translate-x-0 ${!isOpen ? 'md:flex hidden' : 'flex'}`}
+        className="absolute top-0 right-0 h-full w-[85%] max-w-[320px] bg-[rgba(15,23,42,0.85)] backdrop-blur-[24px] border-l border-[rgba(255,255,255,0.1)] flex flex-col p-6 z-40 shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
       >
         <div className="flex items-center justify-between mb-8">
           <Logo className="w-24 md:w-28" />
           <button 
             onClick={onClose} 
-            className="p-2 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg md:hidden"
+            className="p-2 text-gray-400 hover:text-white bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] border border-[rgba(255,255,255,0.05)] rounded-lg transition-all active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.2)]"
           >
             <X size={20} />
           </button>
@@ -130,12 +130,12 @@ export default function RoomInfoPanel({
         </div>
 
         <motion.button
-          whileHover={{ scale: 1.02, backgroundColor: "rgba(239,68,68,0.15)" }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ scale: 1.02, backgroundColor: "rgba(220,38,38,0.2)" }}
+          whileTap={{ scale: 0.95 }}
           onClick={onLeave}
-          className="mt-6 flex items-center justify-center gap-2 text-red-400/80 hover:text-red-300 border border-red-500/20 bg-red-500/5 transition-all px-4 py-2.5 rounded-xl w-full"
+          className="mt-6 flex items-center justify-center gap-2 text-red-300 border border-[rgba(220,38,38,0.2)] bg-[rgba(220,38,38,0.1)] transition-all px-4 py-3 rounded-xl w-full shadow-[0_4px_15px_rgba(220,38,38,0.15)] backdrop-blur-md"
         >
-          <LogOut size={18} />
+          <LogOut size={18} className="translate-x-0.5" />
           <span className="font-medium">Leave Room</span>
         </motion.button>
       </motion.div>

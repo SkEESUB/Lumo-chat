@@ -79,10 +79,12 @@ export function initializeSocket(io) {
           id: generateId(),
           senderId: socket.id,
           senderName: socket.username,
+          roomId: room,
           text: data.text || '',
           fileUrl: data.fileUrl || null,
           fileType: data.fileType || null,
-          timestamp: new Date(),
+          status: 'sent',
+          timestamp: Date.now(),
         };
 
         io.to(room).emit('receive_message', messageData);
@@ -100,16 +102,38 @@ export function initializeSocket(io) {
     });
 
     // ========================
+    // MESSAGE STATUS
+    // ========================
+    socket.on('message_delivered', ({ messageId, roomId }) => {
+      io.to(roomId).emit('update_status', {
+        messageId,
+        status: 'delivered'
+      });
+    });
+
+    socket.on('message_seen', ({ messageId, roomId }) => {
+      io.to(roomId).emit('update_status', {
+        messageId,
+        status: 'seen'
+      });
+    });
+
+    // ========================
     // TYPING
     // ========================
-    socket.on('typing', (isTyping) => {
-      const room = socket.currentRoom;
-      if (!room) return;
-
-      socket.to(room).emit('user_typing', {
+    socket.on('typing', (roomId) => {
+      if (!roomId) roomId = socket.currentRoom;
+      socket.to(roomId).emit('user_typing', {
         userId: socket.id,
-        username: socket.username,
-        isTyping,
+        username: socket.username
+      });
+    });
+
+    socket.on('stop_typing', (roomId) => {
+      if (!roomId) roomId = socket.currentRoom;
+      socket.to(roomId).emit('user_stop_typing', {
+        userId: socket.id,
+        username: socket.username
       });
     });
 

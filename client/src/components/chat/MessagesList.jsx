@@ -76,15 +76,25 @@ export default function MessagesList({
   typingUsers, 
   username 
 }) {
-  const messagesEndRef = useRef(null);
+  const chatRef = useRef(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [activeRipple, setActiveRipple] = useState(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const handleScroll = () => {
+    const el = chatRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    setShowScrollBtn(!nearBottom);
   };
 
   useEffect(() => {
-    scrollToBottom();
+    const el = chatRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+
+    if (nearBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages, typingUsers]);
 
   const triggerRipple = (id) => {
@@ -112,8 +122,9 @@ export default function MessagesList({
   }
 
   return (
-    <main className="chat-body">
-      <div className="max-w-2xl mx-auto flex flex-col gap-3">
+    <>
+    <main className="chat-body" ref={chatRef} onScroll={handleScroll}>
+      <div className="max-w-2xl mx-auto flex flex-col gap-3 relative pb-4">
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => {
             if (msg.type === 'system') {
@@ -181,8 +192,27 @@ export default function MessagesList({
           )}
         </AnimatePresence>
 
-        <div ref={messagesEndRef} className="shrink-0" />
+        <div className="shrink-0" />
       </div>
     </main>
+
+    <AnimatePresence>
+      {showScrollBtn && (
+        <motion.button
+          initial={{ opacity: 0, y: 20, x: '-50%' }}
+          animate={{ opacity: 1, y: 0, x: '-50%' }}
+          exit={{ opacity: 0, y: 20, x: '-50%' }}
+          onClick={() => {
+            if (chatRef.current) {
+              chatRef.current.scrollTop = chatRef.current.scrollHeight;
+            }
+          }}
+          className="fixed bottom-20 left-1/2 z-50 bg-[rgba(15,23,42,0.8)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] text-white shadow-[0_4px_20px_rgba(0,0,0,0.5)] px-4 py-2 rounded-full text-xs font-semibold tracking-wide hover:bg-brand-500 transition-colors"
+        >
+          ↓ New Messages
+        </motion.button>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

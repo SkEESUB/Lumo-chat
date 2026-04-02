@@ -115,6 +115,17 @@ export default function MessageBubble({
           <span className="text-[10px] tracking-wide text-gray-400/80 font-medium">
             {time}
           </span>
+          {isMe && (
+            <span className="text-[11px] ml-0.5 tracking-[-2px]">
+              {msg.status === 'seen' ? (
+                <span className="text-[#3b82f6] font-bold">✓✓</span>
+              ) : msg.status === 'delivered' ? (
+                <span className="text-gray-400 font-bold">✓✓</span>
+              ) : (
+                <span className="text-gray-400 font-bold">✓</span>
+              )}
+            </span>
+          )}
         </div>
 
         {/* Reactions floating below */}

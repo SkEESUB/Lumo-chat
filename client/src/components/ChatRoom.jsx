@@ -71,6 +71,14 @@ export default function ChatRoom() {
       }
       setMessages((prev) => [...prev, { ...data, type: 'chat' }]);
 
+      // Trigger delivered status
+      if (data.senderId !== socket.id && data.roomId) {
+        socket.emit("message_delivered", {
+          messageId: data.id,
+          roomId: data.roomId
+        });
+      }
+
       setRecentActiveUsers((prev) => {
         const next = new Set(prev);
         next.add(data.senderName);
@@ -89,13 +97,20 @@ export default function ChatRoom() {
     const onUserLeft = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
     const onRoomUsers = (users) => setOnlineUsers(users);
     
-    const onUserTyping = ({ userId, username: typingUsername, isTyping }) => {
+    const onUserTyping = ({ username: typingUsername }) => {
+      setTypingUsers((prev) => new Set(prev).add(typingUsername));
+    };
+
+    const onUserStopTyping = ({ username: typingUsername }) => {
       setTypingUsers((prev) => {
         const next = new Set(prev);
-        if (isTyping) next.add(typingUsername);
-        else next.delete(typingUsername);
+        next.delete(typingUsername);
         return next;
       });
+    };
+
+    const onUpdateStatus = ({ messageId, status }) => {
+      setMessages((prev) => prev.map(msg => msg.id === messageId ? { ...msg, status } : msg));
     };
 
     socket.on('receive_message', onReceiveMessage);
@@ -103,6 +118,8 @@ export default function ChatRoom() {
     socket.on('user_left', onUserLeft);
     socket.on('room_users', onRoomUsers);
     socket.on('user_typing', onUserTyping);
+    socket.on('user_stop_typing', onUserStopTyping);
+    socket.on('update_status', onUpdateStatus);
 
     return () => {
       socket.off('connect');
@@ -112,8 +129,22 @@ export default function ChatRoom() {
       socket.off('user_left', onUserLeft);
       socket.off('room_users', onRoomUsers);
       socket.off('user_typing', onUserTyping);
+      socket.off('user_stop_typing', onUserStopTyping);
+      socket.off('update_status', onUpdateStatus);
     };
   }, [roomId, code, username, navigate]);
+
+  // Handle "message seen" logic dynamically based on messages rendered
+  useEffect(() => {
+    messages.forEach((msg) => {
+      if (msg.senderId !== socket.id && msg.status !== "seen" && msg.type === 'chat') {
+        socket.emit("message_seen", {
+          messageId: msg.id,
+          roomId: msg.roomId || roomId
+        });
+      }
+    });
+  }, [messages, roomId]);
 
   const copyRoomDetails = () => {
     const text = `Join my secure Lumo\nRoom ID: ${roomId}\nPIN: ${code}`;
@@ -133,11 +164,11 @@ export default function ChatRoom() {
 
   const handleTyping = (e) => {
     setInputMessage(e.target.value);
-    socket.emit('typing', true);
+    socket.emit('typing', roomId);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing', false);
-    }, 1500);
+      socket.emit('stop_typing', roomId);
+    }, 2000);
   };
 
   const sendMessage = (e) => {
@@ -146,7 +177,7 @@ export default function ChatRoom() {
 
     socket.emit('send_message', { text: inputMessage }, () => {});
     setInputMessage('');
-    socket.emit('typing', false);
+    socket.emit('stop_typing', roomId);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 

@@ -112,78 +112,80 @@ export default function MessagesList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scroll-smooth custom-scrollbar flex flex-col">
+    <div className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth custom-scrollbar flex flex-col">
       {/* Soft light glow behind Messages */}
       <div className="fixed inset-x-0 bottom-0 h-[70%] pointer-events-none z-0 mix-blend-screen opacity-15 bg-gradient-to-t from-cyan-500 via-purple-500 to-transparent blur-[100px]"></div>
       
-      <AnimatePresence initial={false}>
-        {messages.map((msg, idx) => {
-          if (msg.type === 'system') {
+      <div className="max-w-2xl mx-auto w-full flex flex-col gap-3 flex-1 relative z-10">
+        <AnimatePresence initial={false}>
+          {messages.map((msg, idx) => {
+            if (msg.type === 'system') {
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={idx}
+                  className="flex justify-center my-4"
+                >
+                  <span className="text-[11px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full border border-white/5 shadow-sm backdrop-blur-md">
+                    {msg.message}
+                  </span>
+                </motion.div>
+              );
+            }
+
+            const isMe = msg.senderId === socketId;
+            const userHsl = stringToHSL(msg.senderName);
+
             return (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                key={idx}
-                className="flex justify-center my-4"
+                layout
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                key={msg.id}
+                className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full mb-1 mt-1 relative z-10`}
               >
-                <span className="text-[11px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full border border-white/5 shadow-sm backdrop-blur-md">
-                  {msg.message}
-                </span>
+                <MessageBubble 
+                  msg={msg} 
+                  isMe={isMe} 
+                  userHsl={userHsl} 
+                  onRipple={triggerRipple}
+                  activeRipple={activeRipple}
+                  onReact={onReact}
+                />
               </motion.div>
             );
-          }
+          })}
+        </AnimatePresence>
 
-          const isMe = msg.senderId === socketId;
-          const userHsl = stringToHSL(msg.senderName);
-
-          return (
+        <AnimatePresence>
+          {typingUsers.size > 0 && Array.from(typingUsers).filter(u => u !== username).length > 0 && (
             <motion.div
-              layout
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              key={msg.id}
-              className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full mb-5 mt-2 relative z-10`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 5, scale: 0.95 }}
+              className="flex items-end gap-2 mt-auto"
             >
-              <MessageBubble 
-                msg={msg} 
-                isMe={isMe} 
-                userHsl={userHsl} 
-                onRipple={triggerRipple}
-                activeRipple={activeRipple}
-                onReact={onReact}
-              />
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {typingUsers.size > 0 && Array.from(typingUsers).filter(u => u !== username).length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5, scale: 0.95 }}
-            className="flex items-end gap-2 mt-auto"
-          >
-            <div className="w-8 h-8 rounded-full bg-slate-800/80 border border-white/5 flex items-center justify-center text-[10px] font-bold text-gray-500 mb-1 shrink-0">
-              {Array.from(typingUsers).filter(u => u !== username)[0].substring(0, 2).toUpperCase()}
-            </div>
-            <div className="bg-slate-800/80 backdrop-blur-md border border-white/10 text-gray-300 rounded-tr-2xl rounded-br-2xl rounded-tl-xl rounded-bl-sm px-4 py-3 shadow-sm w-fit flex items-center gap-2 mb-1">
-              <div className="flex space-x-1.5 items-center h-4">
-                <motion.div animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut", delay: 0 }} className="w-1.5 h-1.5 bg-brand-400/80 rounded-full"></motion.div>
-                <motion.div animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut", delay: 0.15 }} className="w-1.5 h-1.5 bg-brand-400/80 rounded-full"></motion.div>
-                <motion.div animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut", delay: 0.3 }} className="w-1.5 h-1.5 bg-brand-400/80 rounded-full"></motion.div>
+              <div className="w-8 h-8 rounded-full bg-slate-800/80 border border-white/5 flex items-center justify-center text-[10px] font-bold text-gray-500 mb-1 shrink-0">
+                {Array.from(typingUsers).filter(u => u !== username)[0].substring(0, 2).toUpperCase()}
               </div>
-              <span className="text-xs text-brand-300/80 font-medium ml-1">
-                {Array.from(typingUsers).filter(u => u !== username).join(', ')} is typing
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <div className="bg-slate-800/80 backdrop-blur-md border border-white/10 text-gray-300 rounded-tr-2xl rounded-br-2xl rounded-tl-xl rounded-bl-sm px-4 py-3 shadow-sm w-fit flex items-center gap-2 mb-1">
+                <div className="flex space-x-1.5 items-center h-4">
+                  <motion.div animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut", delay: 0 }} className="w-1.5 h-1.5 bg-brand-400/80 rounded-full"></motion.div>
+                  <motion.div animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut", delay: 0.15 }} className="w-1.5 h-1.5 bg-brand-400/80 rounded-full"></motion.div>
+                  <motion.div animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut", delay: 0.3 }} className="w-1.5 h-1.5 bg-brand-400/80 rounded-full"></motion.div>
+                </div>
+                <span className="text-xs text-brand-300/80 font-medium ml-1">
+                  {Array.from(typingUsers).filter(u => u !== username).join(', ')} is typing
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <div ref={messagesEndRef} className="h-24 md:h-28 shrink-0" />
+        <div ref={messagesEndRef} className="h-4 md:h-6 shrink-0" />
+      </div>
     </div>
   );
 }

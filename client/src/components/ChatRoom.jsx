@@ -216,7 +216,7 @@ export default function ChatRoom() {
 
   return (
     <ChatLayout>
-      <div className="flex flex-col flex-1 max-w-full md:max-w-[70%] lg:max-w-[75%] h-full relative">
+      <div className="flex flex-col flex-1 max-w-full md:max-w-[70%] lg:max-w-[75%]">
         <Header 
           roomId={roomId}
           onlineCount={onlineUsers.length}

@@ -96,8 +96,8 @@ export default function MessagesList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-center">
-        <div className="m-auto flex flex-col items-center justify-center text-gray-400 gap-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col gap-3 justify-center items-center h-full">
           <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-lg relative overflow-hidden group">
             <div className="absolute inset-0 bg-brand-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></div>
             <MessageSquare size={48} className="text-brand-300/50 mb-2 relative z-10" />
@@ -112,11 +112,8 @@ export default function MessagesList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth custom-scrollbar flex flex-col">
-      {/* Soft light glow behind Messages */}
-      <div className="fixed inset-x-0 bottom-0 h-[70%] pointer-events-none z-0 mix-blend-screen opacity-15 bg-gradient-to-t from-cyan-500 via-purple-500 to-transparent blur-[100px]"></div>
-      
-      <div className="max-w-2xl mx-auto w-full flex flex-col gap-3 flex-1 relative z-10">
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col gap-3">
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => {
             if (msg.type === 'system') {
@@ -184,7 +181,7 @@ export default function MessagesList({
           )}
         </AnimatePresence>
 
-        <div ref={messagesEndRef} className="h-4 md:h-6 shrink-0" />
+        <div ref={messagesEndRef} className="shrink-0" />
       </div>
     </div>
   );

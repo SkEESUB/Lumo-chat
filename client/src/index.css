@@ -8,6 +8,11 @@
   --color-glass-border: rgba(255, 255, 255, 0.1);
 }
 
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -17,7 +22,6 @@ body {
   background-color: var(--color-dark-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; /* Prevent scrolling on body, let chat container scroll */
 }
 
 /* Glassmorphism utility */

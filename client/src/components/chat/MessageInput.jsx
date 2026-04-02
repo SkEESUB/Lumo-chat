@@ -16,7 +16,7 @@ export default function MessageInput({
   };
 
   return (
-    <form onSubmit={onSendMessage} className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white/10 backdrop-blur-xl rounded-full px-4 py-3 shadow-lg flex items-center gap-2 z-50">
+    <form onSubmit={onSendMessage} className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white/10 backdrop-blur-xl rounded-full px-4 py-3 flex items-center gap-2 z-20">
       <input
         type="file"
         className="hidden"

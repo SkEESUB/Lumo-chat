@@ -2,19 +2,21 @@ import React from 'react';
 
 export default function ChatLayout({ children }) {
   return (
-    <>
-      <div className="fixed inset-0 z-0 text-white bg-black">
+    <div className="relative h-screen w-full overflow-hidden">
+      {/* Background layer */}
+      <div className="absolute inset-0 z-0">
         <img 
           src="/bg.jpg" 
           className="w-full h-full object-cover blur-2xl scale-110 brightness-50" 
-          alt=""
+          alt="background"
         />
+        <div className="absolute inset-0 bg-[#0a0f1e]/70 backdrop-blur-xl"></div>
       </div>
-      <div className="fixed inset-0 bg-[#0a0f1e]/70 backdrop-blur-xl z-0"></div>
       
-      <div className="relative z-10 flex flex-col h-screen max-w-md mx-auto">
+      {/* App layer */}
+      <div className="relative z-10 h-full flex">
         {children}
       </div>
-    </>
+    </div>
   );
 }

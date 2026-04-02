@@ -96,12 +96,8 @@ export default function MessagesList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 z-10 w-full">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="m-auto flex flex-col items-center justify-center text-gray-400 gap-4"
-        >
+      <div className="flex-1 flex items-center justify-center text-center">
+        <div className="m-auto flex flex-col items-center justify-center text-gray-400 gap-4">
           <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-lg relative overflow-hidden group">
             <div className="absolute inset-0 bg-brand-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></div>
             <MessageSquare size={48} className="text-brand-300/50 mb-2 relative z-10" />
@@ -110,13 +106,13 @@ export default function MessagesList({
             <h3 className="text-white font-medium text-lg mb-1">Start the conversation 🚀</h3>
             <p className="text-sm text-gray-500">Send a message or upload a file to begin.</p>
           </div>
-        </motion.div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth custom-scrollbar relative z-10 flex flex-col w-full h-full">
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scroll-smooth custom-scrollbar flex flex-col">
       {/* Soft light glow behind Messages */}
       <div className="fixed inset-x-0 bottom-0 h-[70%] pointer-events-none z-0 mix-blend-screen opacity-15 bg-gradient-to-t from-cyan-500 via-purple-500 to-transparent blur-[100px]"></div>
       

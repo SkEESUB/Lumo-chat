@@ -33,12 +33,9 @@ export default function RoomInfoPanel({
         )}
       </AnimatePresence>
 
-      {/* Slide-in Panel */}
-      <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: isOpen ? 0 : '100%' }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="absolute top-0 right-0 h-full w-[85%] max-w-[320px] bg-[rgba(15,23,42,0.85)] backdrop-blur-[24px] border-l border-[rgba(255,255,255,0.1)] flex flex-col p-6 z-40 shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
+      {/* Slide-in / Desktop Panel */}
+      <div
+        className={`fixed top-0 right-0 h-full w-[80%] max-w-sm bg-white/10 backdrop-blur-xl transform transition-transform duration-300 z-50 overflow-y-auto custom-scrollbar flex flex-col p-6 shadow-2xl ${isOpen ? "translate-x-0" : "translate-x-full"} md:relative md:translate-x-0 md:flex md:w-[300px] md:max-w-none md:border-l md:border-white/10 md:bg-white/5 md:shadow-none`}
       >
         <div className="flex items-center justify-between mb-8">
           <Logo className="w-24 md:w-28" />
@@ -129,16 +126,14 @@ export default function RoomInfoPanel({
           </ul>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.02, backgroundColor: "rgba(220,38,38,0.2)" }}
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={onLeave}
-          className="mt-6 flex items-center justify-center gap-2 text-red-300 border border-[rgba(220,38,38,0.2)] bg-[rgba(220,38,38,0.1)] transition-all px-4 py-3 rounded-xl w-full shadow-[0_4px_15px_rgba(220,38,38,0.15)] backdrop-blur-md"
+          className="mt-6 flex items-center justify-center gap-2 text-red-300 border border-[rgba(220,38,38,0.2)] bg-[rgba(220,38,38,0.1)] hover:bg-[rgba(220,38,38,0.2)] transition-all px-4 py-3 rounded-xl w-full shadow-[0_4px_15px_rgba(220,38,38,0.15)] backdrop-blur-md shrink-0"
         >
           <LogOut size={18} className="translate-x-0.5" />
           <span className="font-medium">Leave Room</span>
-        </motion.button>
-      </motion.div>
+        </button>
+      </div>
     </>
   );
 }

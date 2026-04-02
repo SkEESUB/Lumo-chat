@@ -216,22 +216,7 @@ export default function ChatRoom() {
 
   return (
     <ChatLayout>
-      <RoomInfoPanel 
-        isOpen={showInfoPanel}
-        onClose={() => setShowInfoPanel(false)}
-        roomId={roomId}
-        code={code}
-        copied={copied}
-        onCopy={copyRoomDetails}
-        onlineUsers={onlineUsers}
-        typingUsers={typingUsers}
-        recentActiveUsers={recentActiveUsers}
-        socketId={socket.id}
-        onLeave={leaveRoom}
-        isConnected={isConnected}
-      />
-      
-      <div className="flex-1 flex flex-col min-w-0 h-full bg-slate-900/40 relative order-first md:order-last">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header 
           roomId={roomId}
           onlineCount={onlineUsers.length}
@@ -255,6 +240,21 @@ export default function ChatRoom() {
           isUploading={isUploading}
         />
       </div>
+
+      <RoomInfoPanel 
+        isOpen={showInfoPanel}
+        onClose={() => setShowInfoPanel(false)}
+        roomId={roomId}
+        code={code}
+        copied={copied}
+        onCopy={copyRoomDetails}
+        onlineUsers={onlineUsers}
+        typingUsers={typingUsers}
+        recentActiveUsers={recentActiveUsers}
+        socketId={socket.id}
+        onLeave={leaveRoom}
+        isConnected={isConnected}
+      />
     </ChatLayout>
   );
 }

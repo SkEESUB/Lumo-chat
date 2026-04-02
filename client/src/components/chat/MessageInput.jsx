@@ -16,9 +16,9 @@ export default function MessageInput({
   };
 
   return (
-    <div className="flex-shrink-0 p-3 pb-[env(safe-area-inset-bottom)] bg-transparent">
+    <div className="flex-shrink-0 px-3 pt-2 pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-2xl mx-auto">
-        <form onSubmit={onSendMessage} className="bg-white/10 backdrop-blur-xl rounded-full px-4 py-3 flex items-center gap-2 border border-white/10 shadow-lg">
+        <form onSubmit={onSendMessage} className="flex items-center gap-2 px-4 py-3 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 shadow-lg">
           <input
           type="file"
           className="hidden"

@@ -33,9 +33,9 @@ export default function RoomInfoPanel({
         )}
       </AnimatePresence>
 
-      {/* Slide-in / Desktop Panel */}
+      {/* Slide-in Overlay Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-[80%] max-w-sm bg-white/10 backdrop-blur-xl transform transition-transform duration-300 z-50 overflow-y-auto custom-scrollbar flex flex-col p-6 shadow-2xl ${isOpen ? "translate-x-0" : "translate-x-full"} md:relative md:translate-x-0 md:flex md:w-[30%] lg:w-[25%] md:max-w-none md:border-l md:border-white/10 md:bg-white/5 md:shadow-none`}
+        className={`fixed top-0 right-0 h-full w-[80%] max-w-sm bg-white/10 backdrop-blur-xl transform transition-transform duration-300 z-50 overflow-y-auto custom-scrollbar flex flex-col p-6 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] border-l border-white/10 ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="flex items-center justify-between mb-8">
           <Logo className="w-24 md:w-28" />

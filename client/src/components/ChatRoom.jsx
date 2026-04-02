@@ -215,31 +215,29 @@ export default function ChatRoom() {
   }
 
   return (
-    <ChatLayout>
-      <div className="flex flex-col flex-1 max-w-full md:max-w-[70%] lg:max-w-[75%]">
-        <Header 
-          roomId={roomId}
-          onlineCount={onlineUsers.length}
-          onInfoClick={() => setShowInfoPanel(true)}
-          onLeaveRoom={leaveRoom}
-        />
-        
-        <MessagesList 
-          messages={messages}
-          socketId={socket.id}
-          onReact={reactToMessage}
-          typingUsers={typingUsers}
-          username={username}
-        />
+    <div className="h-[100dvh] flex flex-col bg-[#020617] overflow-hidden">
+      <Header 
+        roomId={roomId}
+        onlineCount={onlineUsers.length}
+        onInfoClick={() => setShowInfoPanel(true)}
+        onLeaveRoom={leaveRoom}
+      />
+      
+      <MessagesList 
+        messages={messages}
+        socketId={socket.id}
+        onReact={reactToMessage}
+        typingUsers={typingUsers}
+        username={username}
+      />
 
-        <MessageInput 
-          inputMessage={inputMessage}
-          onInputChange={handleTyping}
-          onSendMessage={sendMessage}
-          onFileChange={handleFileChange}
-          isUploading={isUploading}
-        />
-      </div>
+      <MessageInput 
+        inputMessage={inputMessage}
+        onInputChange={handleTyping}
+        onSendMessage={sendMessage}
+        onFileChange={handleFileChange}
+        isUploading={isUploading}
+      />
 
       <RoomInfoPanel 
         isOpen={showInfoPanel}
@@ -255,6 +253,6 @@ export default function ChatRoom() {
         onLeave={leaveRoom}
         isConnected={isConnected}
       />
-    </ChatLayout>
+    </div>
   );
 }

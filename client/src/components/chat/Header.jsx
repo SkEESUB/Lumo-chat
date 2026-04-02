@@ -4,7 +4,7 @@ import Icon from '../ui/Icon';
 
 export default function Header({ roomId, onlineCount, onInfoClick, onLeaveRoom }) {
   return (
-    <div className="chat-header flex items-center justify-between">
+    <header className="chat-header justify-between text-white">
       <div className="flex items-center gap-3">
         <Icon className="w-8 h-8" />
         <div className="flex flex-col">
@@ -29,6 +29,6 @@ export default function Header({ roomId, onlineCount, onInfoClick, onLeaveRoom }
           <LogOut size={18} className="translate-x-0.5" />
         </button>
       </div>
-    </div>
+    </header>
   );
 }

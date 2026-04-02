@@ -96,7 +96,7 @@ export default function MessagesList({
 
   if (messages.length === 0) {
     return (
-      <div className="chat-messages flex items-center justify-center">
+      <main className="chat-body flex items-center justify-center">
         <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col gap-3 justify-center items-center h-full">
           <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-lg relative overflow-hidden group">
             <div className="absolute inset-0 bg-brand-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></div>
@@ -107,12 +107,12 @@ export default function MessagesList({
             <p className="text-sm text-gray-500">Send a message or upload a file to begin.</p>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="chat-messages">
+    <main className="chat-body">
       <div className="max-w-2xl mx-auto flex flex-col gap-3">
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => {
@@ -183,6 +183,6 @@ export default function MessagesList({
 
         <div ref={messagesEndRef} className="shrink-0" />
       </div>
-    </div>
+    </main>
   );
 }

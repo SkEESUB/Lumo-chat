@@ -16,9 +16,8 @@ export default function MessageInput({
   };
 
   return (
-    <div className="chat-input">
-      <div className="max-w-2xl mx-auto">
-        <form onSubmit={onSendMessage} className="input-box">
+    <footer className="chat-footer">
+      <form onSubmit={onSendMessage} className="input-box">
           <input
           type="file"
           className="hidden"
@@ -61,7 +60,6 @@ export default function MessageInput({
           <Send size={16} className={`${inputMessage.trim() ? "translate-x-0.5 -translate-y-0.5 transition-transform" : ""}`} />
         </motion.button>
       </form>
-      </div>
-    </div>
+    </footer>
   );
 }

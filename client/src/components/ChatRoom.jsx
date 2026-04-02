@@ -215,7 +215,7 @@ export default function ChatRoom() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-[#020617] overflow-hidden">
+    <div className="chat-root">
       <Header 
         roomId={roomId}
         onlineCount={onlineUsers.length}

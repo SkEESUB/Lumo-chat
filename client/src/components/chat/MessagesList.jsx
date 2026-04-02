@@ -96,7 +96,7 @@ export default function MessagesList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto overscroll-contain">
+      <div className="chat-messages flex items-center justify-center">
         <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col gap-3 justify-center items-center h-full">
           <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-lg relative overflow-hidden group">
             <div className="absolute inset-0 bg-brand-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></div>
@@ -112,8 +112,8 @@ export default function MessagesList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto overscroll-contain">
-      <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col gap-3">
+    <div className="chat-messages">
+      <div className="max-w-2xl mx-auto flex flex-col gap-3">
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => {
             if (msg.type === 'system') {

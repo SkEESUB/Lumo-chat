@@ -4,7 +4,7 @@ import Icon from '../ui/Icon';
 
 export default function Header({ roomId, onlineCount, onInfoClick, onLeaveRoom }) {
   return (
-    <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 bg-white/5 backdrop-blur-xl z-10 flex items-center justify-between">
+    <div className="chat-header flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Icon className="w-8 h-8" />
         <div className="flex flex-col">

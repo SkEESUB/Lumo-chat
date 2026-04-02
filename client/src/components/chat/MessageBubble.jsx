@@ -74,10 +74,10 @@ export default function MessageBubble({
             whileHover={{ y: -2, scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: "spring", stiffness: 400, damping: 25, duration: 0.2 }}
-            className={`px-[14px] py-[10px] relative overflow-hidden transition-all duration-300 z-10 w-fit break-words leading-relaxed text-[15px] max-w-full rounded-[18px] shadow-[0_8px_30px_rgba(0,0,0,0.25)] border backdrop-blur-[14px] ${
+            className={`relative overflow-hidden transition-all duration-300 z-10 w-fit break-words leading-relaxed text-[15px] max-w-full backdrop-blur-xl rounded-2xl px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(0,200,255,0.15)] text-white ${
             isMe
-              ? 'bg-gradient-to-br from-cyan-500/30 to-purple-500/40 text-white rounded-br-sm border-cyan-400/20 shadow-[0_8px_30px_rgba(6,182,212,0.15),inset_0_1px_1px_rgba(255,255,255,0.15)] glow-cyan'
-              : 'bg-[rgba(255,255,255,0.05)] text-gray-100 rounded-bl-sm border-[rgba(255,255,255,0.08)] shadow-[0_8px_30px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)]'
+              ? 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40'
+              : 'bg-white/10'
             }`}>
             {/* Inner Top Highlight for glass */}
             <div className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-t-[inherit]"></div>

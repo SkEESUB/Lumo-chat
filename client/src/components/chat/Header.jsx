@@ -4,7 +4,7 @@ import Icon from '../ui/Icon';
 
 export default function Header({ roomId, onlineCount, onInfoClick, onLeaveRoom }) {
   return (
-    <div className="h-16 shrink-0 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between px-4 bg-[rgba(255,255,255,0.03)] backdrop-blur-[20px] sticky top-0 z-20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
+    <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-4 py-3 sticky top-0 z-20">
       <div className="flex items-center gap-3">
         <Icon className="w-8 h-8" />
         <div className="flex flex-col">
@@ -15,11 +15,10 @@ export default function Header({ roomId, onlineCount, onInfoClick, onLeaveRoom }
       <div className="flex items-center gap-2.5">
         <button 
           onClick={onInfoClick} 
-          className="p-2 text-cyan-50 bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] border border-[rgba(255,255,255,0.08)] rounded-lg transition-all 
-          shadow-[0_4px_15px_rgba(0,0,0,0.2)] backdrop-blur-md active:scale-95"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_20px_rgba(0,234,255,0.6)] hover:scale-105 active:scale-95 transition-all text-white"
           title="Room Info"
         >
-          <Info size={18} />
+          <Info size={20} />
         </button>
         <button 
           onClick={onLeaveRoom} 

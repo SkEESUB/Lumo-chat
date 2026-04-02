@@ -187,7 +187,7 @@ export default function MessagesList({
         )}
       </AnimatePresence>
 
-      <div ref={messagesEndRef} className="h-4 md:h-2 shrink-0" />
+      <div ref={messagesEndRef} className="h-24 md:h-28 shrink-0" />
     </div>
   );
 }

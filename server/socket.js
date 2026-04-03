@@ -1,40 +1,56 @@
-// Replace roomManager to implement persistent messages and rooms
-const users = new Map(); // key: userId, value: { name, status, lastSeen, socketId, roomId }
+const rooms = new Map(); // roomId => Map(userId => userData)
 let messages = {}; // roomId => []
-let roomCreators = {}; // roomId => userName
+const roomMeta = new Map(); // roomId => { creatorName, creatorId }
 
-function getRoomUsers(roomId) {
-  return Array.from(users.values()).filter(u => u.roomId === roomId).map(u => ({
-    id: u.userId, // keep payload compatible with frontend which expects `id`
-    username: u.name,
-    status: u.status,
-    lastSeen: u.lastSeen
-  }));
-}
 
-// 5. IDLE DETECTION
-setInterval(() => {
-  const now = Date.now();
-  users.forEach(user => {
-    if (user.status === "online" && now - user.lastSeen > 60000) {
-      user.status = "idle";
-      // Need to inform room wait: 
-      // User prompt doesn't say if setInterval should emit, but it makes sense to.
-      // But user prompt simply says: 
-      /*
-      users.forEach(user => {
-        if (user.status === "online" && now - user.lastSeen > 60000) {
-          user.status = "idle";
-        }
-      });
-      */
-    }
-  });
-}, 10000);
 
 export function initializeSocket(io) {
+  function emitRoomData(roomId) {
+    if (!rooms.has(roomId)) return;
+    const users = Array.from(rooms.get(roomId).values());
+
+    const counts = {
+      online: users.filter(u => u.status === "online").length,
+      idle: users.filter(u => u.status === "idle").length,
+      offline: users.filter(u => u.status === "offline").length,
+      total: users.length
+    };
+
+    io.to(roomId).emit("room_data", {
+      users,
+      counts
+    });
+  }
+
+  // 5. IDLE DETECTION
+  setInterval(() => {
+    const now = Date.now();
+    rooms.forEach((roomUsers, roomId) => {
+      let changed = false;
+      roomUsers.forEach((user, userId) => {
+        if (user.status === "online" && now - user.lastSeen > 60000) {
+          user.status = "idle";
+          changed = true;
+        }
+      });
+      if (changed) {
+        emitRoomData(roomId);
+      }
+    });
+  }, 10000);
+
   io.on('connection', (socket) => {
     console.log(`🔥 User connected: ${socket.id}`);
+
+    // ========================
+    // CREATE ROOM
+    // ========================
+    socket.on("create_room", ({ roomId, userId, name }) => {
+      roomMeta.set(roomId, {
+        creatorName: name,
+        creatorId: userId
+      });
+    });
 
     // ========================
     // JOIN ROOM
@@ -50,22 +66,39 @@ export function initializeSocket(io) {
           return;
         }
 
-        if (!roomCreators[roomId]) {
-          roomCreators[roomId] = userName;
+        if (!rooms.has(roomId)) {
+          rooms.set(roomId, new Map());
         }
+
+        const roomUsers = rooms.get(roomId);
+
+        roomUsers.set(userId, {
+          id: userId, // Match frontend expectations safely
+          userId,
+          username: userName, // match frontend mappings
+          name: userName,
+          status: "online",
+          lastSeen: Date.now(),
+          socketId: socket.id,
+          roomId
+        });
 
         socket.join(roomId);
         socket.currentRoom = roomId;
         socket.username = userName;
         socket.userId = userId;
 
-        users.set(userId, {
-          userId, // keep a copy inside
-          name: userName,
-          status: "online",
-          lastSeen: Date.now(),
-          socketId: socket.id,
-          roomId
+        // Ensure roomMeta gets created if it somehow doesn't exist yet (e.g. joined before create_room or API)
+        if (!roomMeta.has(roomId)) {
+          roomMeta.set(roomId, {
+            creatorName: userName,
+            creatorId: userId
+          });
+        }
+
+        const meta = roomMeta.get(roomId);
+        socket.emit("room_info", {
+          creatorName: meta?.creatorName || "Unknown"
         });
 
         const oldMessages = messages[roomId] || [];
@@ -78,15 +111,13 @@ export function initializeSocket(io) {
 
         console.log("✅ User joined:", userName, roomId);
 
-        // Send updated user list
-        const roomUsers = getRoomUsers(roomId);
-        io.to(roomId).emit('user_list', roomUsers);
+        emitRoomData(roomId);
 
         if (callback) {
           safeCallback(callback, {
             success: true,
             message: 'Joined successfully',
-            room: { roomId, creator: roomCreators[roomId] }
+            room: { roomId }
           });
         }
 
@@ -184,44 +215,58 @@ export function initializeSocket(io) {
     // ========================
     // USER STATUS
     // ========================
-    socket.on("user_activity", ({ userId }) => {
-      if (users.has(userId)) {
-        const user = users.get(userId);
-        user.lastSeen = Date.now();
-        user.status = "online";
-        io.to(user.roomId).emit('user_list', getRoomUsers(user.roomId));
+    socket.on("user_activity", ({ userId, roomId }) => {
+      const roomToUpdate = roomId || socket.currentRoom;
+      if (rooms.has(roomToUpdate)) {
+        const roomUsers = rooms.get(roomToUpdate);
+        if (roomUsers.has(userId)) {
+          const user = roomUsers.get(userId);
+          user.lastSeen = Date.now();
+          user.status = "online";
+          emitRoomData(roomToUpdate);
+        }
       }
     });
 
     socket.on("reconnect_user", ({ userId }) => {
-      if (users.has(userId)) {
-        const user = users.get(userId);
-        user.status = "online";
-        user.socketId = socket.id;
-        socket.join(user.roomId);
-        socket.currentRoom = user.roomId;
-        socket.username = user.name;
-        socket.userId = userId;
-        io.to(user.roomId).emit('user_list', getRoomUsers(user.roomId));
-      }
+      rooms.forEach((roomUsers, roomId) => {
+        if (roomUsers.has(userId)) {
+          const user = roomUsers.get(userId);
+          user.status = "online";
+          user.socketId = socket.id;
+          socket.join(roomId);
+          socket.currentRoom = roomId;
+          socket.username = user.name;
+          socket.userId = userId;
+          emitRoomData(roomId);
+        }
+      });
     });
 
-    // Backwards compatibility with previous events (just to be safe)
+    // Backwards compatibility
     socket.on("user_idle", () => {
-      if (users.has(socket.userId)) {
-        const user = users.get(socket.userId);
-        user.status = "idle";
-        user.lastSeen = Date.now();
-        io.to(user.roomId).emit('user_list', getRoomUsers(user.roomId));
+      const roomId = socket.currentRoom;
+      if (rooms.has(roomId)) {
+        const roomUsers = rooms.get(roomId);
+        if (roomUsers.has(socket.userId)) {
+          const user = roomUsers.get(socket.userId);
+          user.status = "idle";
+          user.lastSeen = Date.now();
+          emitRoomData(roomId);
+        }
       }
     });
 
     socket.on("user_active", () => {
-      if (users.has(socket.userId)) {
-        const user = users.get(socket.userId);
-        user.status = "online";
-        user.lastSeen = Date.now();
-        io.to(user.roomId).emit('user_list', getRoomUsers(user.roomId));
+      const roomId = socket.currentRoom;
+      if (rooms.has(roomId)) {
+        const roomUsers = rooms.get(roomId);
+        if (roomUsers.has(socket.userId)) {
+          const user = roomUsers.get(socket.userId);
+          user.status = "online";
+          user.lastSeen = Date.now();
+          emitRoomData(roomId);
+        }
       }
     });
 
@@ -230,13 +275,19 @@ export function initializeSocket(io) {
     // ========================
     socket.on('disconnect', () => {
       console.log(`❌ User disconnected: ${socket.id}`);
-      for (let [userId, user] of users.entries()) {
-        if (user.socketId === socket.id) {
-          user.status = "offline";
-          user.lastSeen = Date.now();
-          io.to(user.roomId).emit('user_list', getRoomUsers(user.roomId));
+      rooms.forEach((roomUsers, roomId) => {
+        let changed = false;
+        roomUsers.forEach((user, userId) => {
+          if (user.socketId === socket.id) {
+            user.status = "offline";
+            user.lastSeen = Date.now();
+            changed = true;
+          }
+        });
+        if (changed) {
+          emitRoomData(roomId);
         }
-      }
+      });
     });
   });
 }

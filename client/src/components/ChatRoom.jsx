@@ -39,6 +39,7 @@ export default function ChatRoom() {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [copied, setCopied] = useState(false);
+  const [counts, setCounts] = useState({ online: 0, idle: 0, offline: 0, total: 0 });
   const [error, setError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [recentActiveUsers, setRecentActiveUsers] = useState(new Set());
@@ -113,7 +114,6 @@ export default function ChatRoom() {
       socket.emit('join_room', { roomId, userId, userName }, (res) => {
         if (res && (res.success || res.message === 'User already in room')) {
           socket.currentRoom = roomId;
-          if (res.room && res.room.creator) setRoomCreator(res.room.creator);
           setIsConnected(true);
         } else if (res) {
           setError(res.message);
@@ -188,8 +188,9 @@ export default function ChatRoom() {
 
     const onUserJoined = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
     const onUserLeft = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
-    const onUserList = (usersList) => {
-      setOnlineUsers(usersList);
+    const onRoomData = ({ users, counts }) => {
+      setOnlineUsers(users);
+      setCounts(counts);
     };
 
     const onUserTyping = ({ username: typingUsername }) => {
@@ -216,14 +217,19 @@ export default function ChatRoom() {
       console.log(userId + " is offline");
     };
 
+    const onRoomInfo = (data) => {
+      setRoomCreator(data.creatorName);
+    };
+
     socket.on('load_messages', onLoadMessages);
     socket.on('receive_message', onReceiveMessage);
     socket.on('user_joined', onUserJoined);
     socket.on('user_left', onUserLeft);
-    socket.on('user_list', onUserList);
+    socket.on('room_data', onRoomData);
     socket.on('user_typing', onUserTyping);
     socket.on('user_stop_typing', onUserStopTyping);
     socket.on('update_status', onUpdateStatus);
+    socket.on('room_info', onRoomInfo);
     socket.on('user_online', onUserOnline);
     socket.on('user_offline', onUserOffline);
 
@@ -234,10 +240,11 @@ export default function ChatRoom() {
       socket.off('receive_message', onReceiveMessage);
       socket.off('user_joined', onUserJoined);
       socket.off('user_left', onUserLeft);
-      socket.off('user_list', onUserList);
+      socket.off('room_data', onRoomData);
       socket.off('user_typing', onUserTyping);
       socket.off('user_stop_typing', onUserStopTyping);
       socket.off('update_status', onUpdateStatus);
+      socket.off('room_info', onRoomInfo);
       socket.off('user_online', onUserOnline);
       socket.off('user_offline', onUserOffline);
     };
@@ -356,9 +363,9 @@ export default function ChatRoom() {
 
   return (
     <div className="chat-wrapper">
-      <Header
+      <Header 
         roomId={roomId}
-        users={onlineUsers}
+        counts={counts}
         onInfoClick={() => setShowInfoPanel(true)}
         onLeaveRoom={leaveRoom}
       />

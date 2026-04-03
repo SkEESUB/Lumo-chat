@@ -133,6 +133,10 @@ export default function RoomInfoPanel({
           <LogOut size={18} className="translate-x-0.5" />
           <span className="font-medium">Leave Room</span>
         </button>
+
+        <div className="creator">
+          Created by Eesub
+        </div>
       </div>
     </>
   );

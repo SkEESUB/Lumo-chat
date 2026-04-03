@@ -135,3 +135,20 @@ body {
     background-position: 100% 100%;
   }
 }
+
+/* User Branding */
+.footer-brand {
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.6;
+  color: #9ca3af;
+  padding: 8px 0;
+}
+
+.creator {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.7;
+  color: #cbd5f5;
+}

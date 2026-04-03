@@ -270,6 +270,10 @@ export default function ChatRoom() {
         isUploading={isUploading}
       />
 
+      <div className="footer-brand">
+        Powered by Eesub
+      </div>
+
       <RoomInfoPanel 
         isOpen={showInfoPanel}
         onClose={() => setShowInfoPanel(false)}

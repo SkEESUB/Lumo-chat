@@ -16,7 +16,7 @@ export default function ChatRoom() {
   const navigate = useNavigate();
 
   const state = location.state || {};
-  
+
   let userId = localStorage.getItem("userId");
   let userName = localStorage.getItem("userName");
 
@@ -35,13 +35,14 @@ export default function ChatRoom() {
 
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [roomCreator, setRoomCreator] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [recentActiveUsers, setRecentActiveUsers] = useState(new Set());
-  
+
   // UI State
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -95,12 +96,13 @@ export default function ChatRoom() {
 
       console.log("JOIN DATA:", { roomId, userId, userName });
       console.log("✅ Joining room:", { roomId, userId, userName });
-      
+
       hasJoined = true;
 
       socket.emit('join_room', { roomId, userId, userName }, (res) => {
         if (res && (res.success || res.message === 'User already in room')) {
           socket.currentRoom = roomId;
+          if (res.room && res.room.creator) setRoomCreator(res.room.creator);
           setIsConnected(true);
         } else if (res) {
           setError(res.message);
@@ -174,8 +176,10 @@ export default function ChatRoom() {
 
     const onUserJoined = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
     const onUserLeft = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
-    const onRoomUsers = (users) => setOnlineUsers(users);
-    
+    const onUserStatusUpdate = (usersList) => {
+      setOnlineUsers(usersList);
+    };
+
     const onUserTyping = ({ username: typingUsername }) => {
       setTypingUsers((prev) => new Set(prev).add(typingUsername));
     };
@@ -204,7 +208,7 @@ export default function ChatRoom() {
     socket.on('receive_message', onReceiveMessage);
     socket.on('user_joined', onUserJoined);
     socket.on('user_left', onUserLeft);
-    socket.on('room_users', onRoomUsers);
+    socket.on('user_status_update', onUserStatusUpdate);
     socket.on('user_typing', onUserTyping);
     socket.on('user_stop_typing', onUserStopTyping);
     socket.on('update_status', onUpdateStatus);
@@ -218,7 +222,7 @@ export default function ChatRoom() {
       socket.off('receive_message', onReceiveMessage);
       socket.off('user_joined', onUserJoined);
       socket.off('user_left', onUserLeft);
-      socket.off('room_users', onRoomUsers);
+      socket.off('user_status_update', onUserStatusUpdate);
       socket.off('user_typing', onUserTyping);
       socket.off('user_stop_typing', onUserStopTyping);
       socket.off('update_status', onUpdateStatus);
@@ -252,7 +256,7 @@ export default function ChatRoom() {
   };
 
   const reactToMessage = (messageId, emoji) => {
-    socket.emit('send_message', { text: `REACT:${emoji}:${messageId}` }, () => {});
+    socket.emit('send_message', { text: `REACT:${emoji}:${messageId}` }, () => { });
   };
 
   const handleTyping = (e) => {
@@ -268,7 +272,7 @@ export default function ChatRoom() {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
-    socket.emit('send_message', { text: inputMessage }, () => {});
+    socket.emit('send_message', { text: inputMessage }, () => { });
     setInputMessage('');
     socket.emit('stop_typing', roomId);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -317,7 +321,7 @@ export default function ChatRoom() {
         type: "file",
         fileUrl: fileURL,
         fileType: file.type.startsWith("image/") ? "image" : "file"
-      }, () => {});
+      }, () => { });
     }
     e.target.value = null;
   };
@@ -340,14 +344,14 @@ export default function ChatRoom() {
 
   return (
     <div className="chat-wrapper">
-      <Header 
+      <Header
         roomId={roomId}
-        onlineCount={onlineUsers.length}
+        users={onlineUsers}
         onInfoClick={() => setShowInfoPanel(true)}
         onLeaveRoom={leaveRoom}
       />
-      
-      <MessagesList 
+
+      <MessagesList
         messages={messages}
         socketId={socket.id}
         onReact={reactToMessage}
@@ -355,7 +359,7 @@ export default function ChatRoom() {
         username={username}
       />
 
-      <MessageInput 
+      <MessageInput
         inputMessage={inputMessage}
         onInputChange={handleTyping}
         onSendMessage={sendMessage}
@@ -364,7 +368,7 @@ export default function ChatRoom() {
       />
 
       <div className="footer-brand">
-        Powered by Eesub
+        Powered by Eesub Labs
       </div>
 
       <RoomInfoPanel 
@@ -380,6 +384,7 @@ export default function ChatRoom() {
         socketId={socket.id}
         onLeave={leaveRoom}
         isConnected={isConnected}
+        roomCreator={roomCreator}
       />
     </div>
   );

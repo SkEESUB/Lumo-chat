@@ -16,7 +16,8 @@ export default function RoomInfoPanel({
   recentActiveUsers,
   socketId,
   onLeave,
-  isConnected
+  isConnected,
+  roomCreator
 }) {
   return (
     <>
@@ -39,8 +40,8 @@ export default function RoomInfoPanel({
       >
         <div className="flex items-center justify-between mb-8">
           <Logo className="w-24 md:w-28" />
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2 text-gray-400 hover:text-white bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] border border-[rgba(255,255,255,0.05)] rounded-lg transition-all active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.2)]"
           >
             <X size={20} />
@@ -79,7 +80,7 @@ export default function RoomInfoPanel({
                 const isTyping = typingUsers.has(u.username);
                 const isActive = isTyping || recentActiveUsers.has(u.username);
                 const userHsl = stringToHSL(u.username);
-                
+
                 return (
                   <motion.li
                     initial={{ opacity: 0, x: -20, scale: 0.8 }}
@@ -91,10 +92,10 @@ export default function RoomInfoPanel({
                   >
                     <div className="relative">
                       <div className="absolute inset-0 rounded-full blur-[6px] transition-all duration-500" style={{ backgroundColor: `hsl(${userHsl})`, opacity: isActive ? 0.7 : 0.2 }}></div>
-                      
-                      <motion.div 
-                        style={{ 
-                          backgroundColor: `hsla(${userHsl}, 0.2)`, 
+
+                      <motion.div
+                        style={{
+                          backgroundColor: `hsla(${userHsl}, 0.2)`,
                           color: `hsl(${userHsl})`,
                           borderColor: `hsla(${userHsl}, 0.5)`
                         }}
@@ -103,7 +104,7 @@ export default function RoomInfoPanel({
                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
                         <span className="relative z-10">{u.username.substring(0, 2)}</span>
                       </motion.div>
-                      
+
                       <div className="absolute bottom-[-1px] right-[-1px]">
                         <span className="relative flex h-3 w-3">
                           {u.status === 'online' && (
@@ -129,9 +130,9 @@ export default function RoomInfoPanel({
                         <span className="text-[10px] text-brand-300 animate-pulse mt-0.5">is typing...</span>
                       ) : (
                         <span className="text-[10px] text-gray-500 mt-0.5">
-                          {u.status === 'online' ? 'Online' 
-                          : u.status === 'idle' ? 'Idle' 
-                          : `Last seen ${new Date(u.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                          {u.status === 'online' ? 'Online'
+                            : u.status === 'idle' ? 'Idle'
+                              : `Last seen ${new Date(u.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                         </span>
                       )}
                     </div>
@@ -150,8 +151,9 @@ export default function RoomInfoPanel({
           <span className="font-medium">Leave Room</span>
         </button>
 
-        <div className="creator">
-          Created by Eesub
+        <div className="creator flex flex-col items-center gap-1 mt-4">
+          <span className="text-gray-400 text-xs">Created by {roomCreator || 'Unknown'}</span>
+          <span className="text-brand-300 text-xs font-semibold">Designed by Eesub</span>
         </div>
       </div>
     </>

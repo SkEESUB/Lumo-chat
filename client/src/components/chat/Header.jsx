@@ -2,14 +2,22 @@ import React from 'react';
 import { Info, LogOut } from 'lucide-react';
 import Icon from '../ui/Icon';
 
-export default function Header({ roomId, onlineCount, onInfoClick, onLeaveRoom }) {
+export default function Header({ roomId, users = [], onInfoClick, onLeaveRoom }) {
+  const onlineCount = users.filter(u => u.status === 'online').length;
+  const idleCount = users.filter(u => u.status === 'idle').length;
+
+  let statusText = '';
+  if (onlineCount > 0) statusText += `${onlineCount} online`;
+  if (idleCount > 0) statusText += (statusText ? ` • ${idleCount} idle` : `${idleCount} idle`);
+  if (!statusText) statusText = "0 online";
+
   return (
     <header className="chat-header justify-between text-white">
       <div className="flex items-center gap-3">
         <Icon className="w-8 h-8" />
         <div className="flex flex-col">
           <span className="font-bold text-white leading-tight mt-0.5">Lumo <span className="text-gray-400 font-normal">Room</span></span>
-          <span className="text-[10px] text-brand-300/80 font-medium leading-[1]">{onlineCount} online</span>
+          <span className="text-[10px] text-brand-300/80 font-medium leading-[1]">{statusText}</span>
         </div>
       </div>
       <div className="flex items-center gap-2.5">

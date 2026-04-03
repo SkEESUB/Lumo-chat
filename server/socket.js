@@ -2,6 +2,7 @@
 let users = {};
 let rooms = {};
 let messages = {}; // roomId => []
+let roomCreators = {}; // roomId => userName
 
 export function initializeSocket(io) {
   io.on('connection', (socket) => {
@@ -25,6 +26,10 @@ export function initializeSocket(io) {
 
         if (!rooms[roomId].includes(userId)) {
           rooms[roomId].push(userId);
+        }
+
+        if (!roomCreators[roomId]) {
+          roomCreators[roomId] = userName;
         }
 
         socket.join(roomId);
@@ -57,13 +62,13 @@ export function initializeSocket(io) {
           status: users[id]?.status || 'offline',
           lastSeen: users[id]?.lastSeen || Date.now()
         }));
-        io.to(roomId).emit('room_users', roomUsers);
+        io.to(roomId).emit('user_status_update', roomUsers);
 
         if (callback) {
           safeCallback(callback, {
             success: true,
             message: 'Joined successfully',
-            room: { roomId }
+            room: { roomId, creator: roomCreators[roomId] }
           });
         }
 
@@ -174,7 +179,7 @@ export function initializeSocket(io) {
             status: users[id]?.status || 'offline',
             lastSeen: users[id]?.lastSeen || Date.now()
           }));
-          io.to(roomId).emit('room_users', roomUsers);
+          io.to(roomId).emit('user_status_update', roomUsers);
         }
       }
     };

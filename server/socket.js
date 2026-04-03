@@ -9,20 +9,22 @@ export function initializeSocket(io) {
     // ========================
     // JOIN ROOM
     // ========================
-    socket.on('join_room', (payload, callback) => {
+    socket.on('join_room', (data = {}, callback) => {
       try {
-        const { roomId, username } = payload || {};
+        const { roomId, userId, userName, code } = data;
+        console.log("JOIN RECEIVED:", data);
 
-        if (!roomId || !username) {
+        if (!roomId || !userId) {
+          console.log("❌ Invalid join data:", data);
           return safeCallback(callback, {
             success: false,
-            message: 'Missing roomId or username',
+            message: 'Missing roomId or userId',
           });
         }
 
-        const res = roomManager.joinRoom(roomId, null, {
-          id: socket.id,
-          username,
+        const res = roomManager.joinRoom(roomId, code, {
+          id: userId,
+          username: userName,
         });
 
         if (!res.success) {
@@ -31,20 +33,21 @@ export function initializeSocket(io) {
 
         socket.join(roomId);
         socket.currentRoom = roomId;
-        socket.username = username;
+        socket.username = userName;
+        socket.userId = userId;
 
-        users[socket.id] = {
+        users[userId] = {
           socketId: socket.id,
-          userName: username,
+          userName: userName,
           roomId,
           online: true
         };
         io.to(roomId).emit("user_online", {
-          userId: socket.id,
-          userName: username
+          userId,
+          userName: userName
         });
 
-        console.log(`✅ ${username} joined room ${roomId}`);
+        console.log("✅ User joined:", userName, roomId);
 
         // Notify others
         socket.to(roomId).emit('user_joined', {
@@ -168,8 +171,9 @@ export function initializeSocket(io) {
       
       for (let id in users) {
         if (users[id].socketId === socket.id) {
+          const roomToNotify = users[id].roomId;
           users[id].online = false;
-          io.to(users[id].roomId).emit("user_offline", {
+          io.to(roomToNotify).emit("user_offline", {
             userId: id
           });
         }
@@ -185,10 +189,10 @@ function handleLeave(socket, io) {
   const room = socket.currentRoom;
   if (!room) return;
 
-  const res = roomManager.leaveRoom(room, socket.id);
+  const res = roomManager.leaveRoom(room, socket.userId || socket.id);
 
   socket.to(room).emit('user_left', {
-    id: socket.id,
+    id: socket.userId || socket.id,
     username: socket.username,
     message: `${socket.username} left the chat`,
     timestamp: new Date(),

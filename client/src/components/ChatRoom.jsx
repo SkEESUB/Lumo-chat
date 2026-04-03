@@ -16,7 +16,27 @@ export default function ChatRoom() {
   const navigate = useNavigate();
 
   const state = location.state || {};
-  const [username] = useState(state.username || '');
+  
+  let initialUserId = localStorage.getItem("userId");
+  if (!initialUserId) {
+    initialUserId = Math.random().toString(36).slice(2);
+    localStorage.setItem("userId", initialUserId);
+  }
+
+  let initialUserName = localStorage.getItem("userName");
+  if (!initialUserName && !state.username) {
+    initialUserName = prompt("Enter your name") || "Guest";
+    localStorage.setItem("userName", initialUserName);
+  } else if (state.username && !initialUserName) {
+    initialUserName = state.username;
+    localStorage.setItem("userName", initialUserName);
+  } else if (state.username && initialUserName && state.username !== initialUserName) {
+    initialUserName = state.username;
+    localStorage.setItem("userName", initialUserName);
+  }
+
+  const [username] = useState(initialUserName);
+  const [userId] = useState(initialUserId);
   const [code] = useState(state.code || '');
 
   const [messages, setMessages] = useState([]);
@@ -51,22 +71,20 @@ export default function ChatRoom() {
 
     connectSocket();
 
-    socket.on('connect', () => {
-      setIsConnected(true);
-      if (hasJoinedRef.current) {
-        socket.emit('join_room', { roomId, code, username }, (res) => {
-          if (res && (res.success || res.message === 'User already in room')) {
-            socket.currentRoom = roomId;
-            setIsConnected(true);
-          }
-        });
+    let hasJoined = false;
+
+    const tryJoin = () => {
+      if (hasJoined) return;
+
+      if (!roomId || !userId || !username) {
+        console.log("❌ Missing join data", { roomId, userId, userName: username });
+        return;
       }
-    });
 
-    socket.on('disconnect', () => setIsConnected(false));
+      console.log("✅ Joining room:", { roomId, userId, userName: username });
+      hasJoined = true;
 
-    if (!hasJoinedRef.current && socket.currentRoom !== roomId) {
-      socket.emit('join_room', { roomId, code, username }, (res) => {
+      socket.emit('join_room', { roomId, userId, userName: username, code }, (res) => {
         if (res && (res.success || res.message === 'User already in room')) {
           socket.currentRoom = roomId;
           setIsConnected(true);
@@ -75,8 +93,21 @@ export default function ChatRoom() {
           setTimeout(() => navigate('/'), 3000);
         }
       });
-      hasJoinedRef.current = true;
+    };
+
+    if (socket.connected) {
+      setIsConnected(true);
+      tryJoin();
     }
+
+    const onConnect = () => {
+      setIsConnected(true);
+      hasJoined = false; // Reset to allow rejoin
+      tryJoin();
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', () => setIsConnected(false));
 
     const onReceiveMessage = (data) => {
       if (data.text && data.text.startsWith('REACT:')) {

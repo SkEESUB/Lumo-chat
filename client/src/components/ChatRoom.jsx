@@ -73,6 +73,17 @@ export default function ChatRoom() {
     };
   }, []);
 
+  // Send activity ping
+  useEffect(() => {
+    if (!socket || !userId) return;
+    const activityInterval = setInterval(() => {
+      if (socket.connected) {
+        socket.emit("user_activity", { userId });
+      }
+    }, 15000);
+    return () => clearInterval(activityInterval);
+  }, [userId]);
+
   // Initial connection and Room Join
   useEffect(() => {
     if (!username) {
@@ -119,6 +130,7 @@ export default function ChatRoom() {
     const onConnect = () => {
       setIsConnected(true);
       hasJoined = false; // Reset to allow rejoin
+      socket.emit("reconnect_user", { userId });
       tryJoin();
     };
 
@@ -176,7 +188,7 @@ export default function ChatRoom() {
 
     const onUserJoined = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
     const onUserLeft = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
-    const onUserStatusUpdate = (usersList) => {
+    const onUserList = (usersList) => {
       setOnlineUsers(usersList);
     };
 
@@ -208,7 +220,7 @@ export default function ChatRoom() {
     socket.on('receive_message', onReceiveMessage);
     socket.on('user_joined', onUserJoined);
     socket.on('user_left', onUserLeft);
-    socket.on('user_status_update', onUserStatusUpdate);
+    socket.on('user_list', onUserList);
     socket.on('user_typing', onUserTyping);
     socket.on('user_stop_typing', onUserStopTyping);
     socket.on('update_status', onUpdateStatus);
@@ -222,7 +234,7 @@ export default function ChatRoom() {
       socket.off('receive_message', onReceiveMessage);
       socket.off('user_joined', onUserJoined);
       socket.off('user_left', onUserLeft);
-      socket.off('user_status_update', onUserStatusUpdate);
+      socket.off('user_list', onUserList);
       socket.off('user_typing', onUserTyping);
       socket.off('user_stop_typing', onUserStopTyping);
       socket.off('update_status', onUpdateStatus);

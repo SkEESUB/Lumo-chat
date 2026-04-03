@@ -4,6 +4,9 @@ const URL = import.meta.env.VITE_BACKEND_URL || "https://lumo-backend-9lq7.onren
 
 export const socket = io(URL, {
   autoConnect: false, // Don't connect until user clicks Join
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
 });
 
 export const connectSocket = () => {

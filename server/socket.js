@@ -1,5 +1,7 @@
 import { roomManager } from './roomManager.js';
 
+let users = {};
+
 export function initializeSocket(io) {
   io.on('connection', (socket) => {
     console.log(`🔥 User connected: ${socket.id}`);
@@ -30,6 +32,17 @@ export function initializeSocket(io) {
         socket.join(roomId);
         socket.currentRoom = roomId;
         socket.username = username;
+
+        users[socket.id] = {
+          socketId: socket.id,
+          userName: username,
+          roomId,
+          online: true
+        };
+        io.to(roomId).emit("user_online", {
+          userId: socket.id,
+          userName: username
+        });
 
         console.log(`✅ ${username} joined room ${roomId}`);
 
@@ -152,6 +165,15 @@ export function initializeSocket(io) {
     socket.on('disconnect', () => {
       console.log(`❌ User disconnected: ${socket.id}`);
       handleLeave(socket, io);
+      
+      for (let id in users) {
+        if (users[id].socketId === socket.id) {
+          users[id].online = false;
+          io.to(users[id].roomId).emit("user_offline", {
+            userId: id
+          });
+        }
+      }
     });
   });
 }

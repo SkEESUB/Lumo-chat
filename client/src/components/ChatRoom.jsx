@@ -35,6 +35,13 @@ export default function ChatRoom() {
   const typingTimeoutRef = useRef(null);
   const hasJoinedRef = useRef(false);
 
+  // Request Notification permission
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   // Initial connection and Room Join
   useEffect(() => {
     if (!username) {
@@ -44,7 +51,18 @@ export default function ChatRoom() {
 
     connectSocket();
 
-    socket.on('connect', () => setIsConnected(true));
+    socket.on('connect', () => {
+      setIsConnected(true);
+      if (hasJoinedRef.current) {
+        socket.emit('join_room', { roomId, code, username }, (res) => {
+          if (res && (res.success || res.message === 'User already in room')) {
+            socket.currentRoom = roomId;
+            setIsConnected(true);
+          }
+        });
+      }
+    });
+
     socket.on('disconnect', () => setIsConnected(false));
 
     if (!hasJoinedRef.current && socket.currentRoom !== roomId) {
@@ -70,6 +88,12 @@ export default function ChatRoom() {
         return;
       }
       setMessages((prev) => [...prev, { ...data, type: 'chat' }]);
+
+      if (document.hidden && "Notification" in window && Notification.permission === "granted" && data.senderId !== socket.id && data.text) {
+        new Notification("New Message", {
+          body: data.text
+        });
+      }
 
       // Trigger delivered status
       if (data.senderId !== socket.id && data.roomId) {
@@ -113,6 +137,14 @@ export default function ChatRoom() {
       setMessages((prev) => prev.map(msg => msg.id === messageId ? { ...msg, status } : msg));
     };
 
+    const onUserOnline = ({ userId, userName }) => {
+      console.log(userName + " is online");
+    };
+
+    const onUserOffline = ({ userId }) => {
+      console.log(userId + " is offline");
+    };
+
     socket.on('receive_message', onReceiveMessage);
     socket.on('user_joined', onUserJoined);
     socket.on('user_left', onUserLeft);
@@ -120,6 +152,8 @@ export default function ChatRoom() {
     socket.on('user_typing', onUserTyping);
     socket.on('user_stop_typing', onUserStopTyping);
     socket.on('update_status', onUpdateStatus);
+    socket.on('user_online', onUserOnline);
+    socket.on('user_offline', onUserOffline);
 
     return () => {
       socket.off('connect');
@@ -131,6 +165,8 @@ export default function ChatRoom() {
       socket.off('user_typing', onUserTyping);
       socket.off('user_stop_typing', onUserStopTyping);
       socket.off('update_status', onUpdateStatus);
+      socket.off('user_online', onUserOnline);
+      socket.off('user_offline', onUserOffline);
     };
   }, [roomId, code, username, navigate]);
 

@@ -56,6 +56,22 @@ export default function ChatRoom() {
     }
   }, []);
 
+  // Handle Visibility Change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!socket.connected) return;
+      if (document.hidden) {
+        socket.emit("user_idle");
+      } else {
+        socket.emit("user_active");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   // Initial connection and Room Join
   useEffect(() => {
     if (!username) {
@@ -74,6 +90,8 @@ export default function ChatRoom() {
         console.log("❌ Missing join data", { roomId, userId, userName });
         return;
       }
+
+      localStorage.setItem("roomId", roomId);
 
       console.log("JOIN DATA:", { roomId, userId, userName });
       console.log("✅ Joining room:", { roomId, userId, userName });
@@ -108,6 +126,10 @@ export default function ChatRoom() {
       hasJoined = false;
     });
 
+    const onLoadMessages = (msgs) => {
+      setMessages(msgs);
+    };
+
     const onReceiveMessage = (data) => {
       if (data.text && data.text.startsWith('REACT:')) {
         const [, emoji, targetMsgId] = data.text.split(':');
@@ -117,7 +139,10 @@ export default function ChatRoom() {
         } : m));
         return;
       }
-      setMessages((prev) => [...prev, { ...data, type: 'chat' }]);
+      setMessages((prev) => {
+        if (prev.some(m => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
 
       if (document.hidden && "Notification" in window && Notification.permission === "granted" && data.senderId !== socket.id && data.text) {
         new Notification("New Message", {
@@ -175,6 +200,7 @@ export default function ChatRoom() {
       console.log(userId + " is offline");
     };
 
+    socket.on('load_messages', onLoadMessages);
     socket.on('receive_message', onReceiveMessage);
     socket.on('user_joined', onUserJoined);
     socket.on('user_left', onUserLeft);
@@ -188,6 +214,7 @@ export default function ChatRoom() {
     return () => {
       socket.off('connect');
       socket.off('disconnect');
+      socket.off('load_messages', onLoadMessages);
       socket.off('receive_message', onReceiveMessage);
       socket.off('user_joined', onUserJoined);
       socket.off('user_left', onUserLeft);

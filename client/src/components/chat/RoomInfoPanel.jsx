@@ -70,7 +70,7 @@ export default function RoomInfoPanel({
 
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
           <div className="text-xs text-brand-200/50 font-medium uppercase tracking-wider mb-4 flex items-center justify-between sticky top-0 bg-transparent py-1 backdrop-blur-md">
-            <span>Online — {onlineUsers.length}</span>
+            <span>Directory — {onlineUsers.length}</span>
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500'}`}></div>
           </div>
           <ul className="space-y-3 relative z-10">
@@ -106,8 +106,18 @@ export default function RoomInfoPanel({
                       
                       <div className="absolute bottom-[-1px] right-[-1px]">
                         <span className="relative flex h-3 w-3">
-                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 ${isActive ? 'scale-150 duration-700' : ''}`}></span>
-                          <span className={`relative inline-flex rounded-full h-3 w-3 bg-green-500 border-[2px] border-[#1e293b] shadow-[0_0_6px_rgba(34,197,94,0.8)] ${isActive ? 'shadow-[0_0_12px_rgba(34,197,94,1)]' : ''}`}></span>
+                          {u.status === 'online' && (
+                            <>
+                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 ${isActive ? 'scale-150 duration-700' : ''}`}></span>
+                              <span className={`relative inline-flex rounded-full h-3 w-3 bg-green-500 border-[2px] border-[#1e293b] shadow-[0_0_6px_rgba(34,197,94,0.8)]`}></span>
+                            </>
+                          )}
+                          {u.status === 'idle' && (
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500 border-[2px] border-[#1e293b] shadow-[0_0_6px_rgba(234,179,8,0.8)]"></span>
+                          )}
+                          {u.status === 'offline' && (
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-gray-500 border-[2px] border-[#1e293b]"></span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -115,8 +125,14 @@ export default function RoomInfoPanel({
                       <span className={`truncate transition-colors ${u.id === socketId ? 'font-semibold text-white' : 'text-gray-300'} group-hover:text-white ${isActive ? 'drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]' : ''}`}>
                         {u.username} {u.id === socketId && <span className="text-xs text-brand-400 opacity-80">(you)</span>}
                       </span>
-                      {isTyping && (
+                      {isTyping ? (
                         <span className="text-[10px] text-brand-300 animate-pulse mt-0.5">is typing...</span>
+                      ) : (
+                        <span className="text-[10px] text-gray-500 mt-0.5">
+                          {u.status === 'online' ? 'Online' 
+                          : u.status === 'idle' ? 'Idle' 
+                          : `Last seen ${new Date(u.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                        </span>
                       )}
                     </div>
                   </motion.li>

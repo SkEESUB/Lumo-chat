@@ -9,26 +9,24 @@ export function initializeSocket(io) {
     // ========================
     // JOIN ROOM
     // ========================
-    socket.on('join_room', (data = {}, callback) => {
+    socket.on('join_room', (data, callback) => {
       try {
-        const { roomId, userId, userName, code } = data;
+        const { roomId, userId, userName } = data || {};
         console.log("JOIN RECEIVED:", data);
 
         if (!roomId || !userId) {
           console.log("❌ Invalid join data:", data);
-          return safeCallback(callback, {
-            success: false,
-            message: 'Missing roomId or userId',
-          });
+          if (callback) return safeCallback(callback, { success: false, message: 'Invalid join data' });
+          return;
         }
 
-        const res = roomManager.joinRoom(roomId, code, {
+        const res = roomManager.joinRoom(roomId, null, {
           id: userId,
           username: userName,
         });
 
         if (!res.success) {
-          return safeCallback(callback, res);
+          if (callback) return safeCallback(callback, res);
         }
 
         socket.join(roomId);
@@ -42,37 +40,37 @@ export function initializeSocket(io) {
           roomId,
           online: true
         };
+
         io.to(roomId).emit("user_online", {
           userId,
-          userName: userName
+          userName
         });
 
         console.log("✅ User joined:", userName, roomId);
 
         // Notify others
         socket.to(roomId).emit('user_joined', {
-          id: socket.id,
-          username,
-          message: `${username} joined the chat`,
+          id: userId,
+          username: userName,
+          message: `${userName} joined the chat`,
           timestamp: new Date(),
         });
 
         // Send updated user list
-        const users = roomManager.getRoomUsers(roomId);
-        io.to(roomId).emit('room_users', users);
+        const roomUsers = roomManager.getRoomUsers(roomId);
+        io.to(roomId).emit('room_users', roomUsers);
 
-        safeCallback(callback, {
-          success: true,
-          message: 'Joined successfully',
-          room: res.room,
-        });
+        if (callback) {
+          safeCallback(callback, {
+            success: true,
+            message: 'Joined successfully',
+            room: res.room,
+          });
+        }
 
       } catch (err) {
-        console.error('❌ join_room error:', err);
-        safeCallback(callback, {
-          success: false,
-          message: 'Server error while joining',
-        });
+        console.error("JOIN ERROR:", err);
+        if (callback) safeCallback(callback, { success: false, message: 'Server error while joining' });
       }
     });
 

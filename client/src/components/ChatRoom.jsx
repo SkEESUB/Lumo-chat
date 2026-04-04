@@ -18,17 +18,19 @@ export default function ChatRoom() {
   const state = location.state || {};
 
   let userId = localStorage.getItem("userId");
-  let userName = localStorage.getItem("userName");
-
   if (!userId) {
     userId = crypto.randomUUID();
     localStorage.setItem("userId", userId);
   }
 
+  let userName = state.username || localStorage.getItem("userName");
+
   if (!userName) {
-    userName = prompt("Enter your name") || state.username || "Guest";
-    localStorage.setItem("userName", userName);
+    userName = prompt("Enter your name") || "Guest";
   }
+  
+  // Always keep localStorage updated with the current active name logic 
+  localStorage.setItem("userName", userName);
 
   const [username] = useState(userName);
   const [code] = useState(state.code || '');
@@ -106,12 +108,12 @@ export default function ChatRoom() {
 
       localStorage.setItem("roomId", roomId);
 
-      console.log("JOIN DATA:", { roomId, userId, userName });
-      console.log("✅ Joining room:", { roomId, userId, userName });
+      console.log("JOIN DATA:", { roomId, userId, name: userName });
+      console.log("✅ Joining room:", { roomId, userId, name: userName });
 
       hasJoined = true;
 
-      socket.emit('join_room', { roomId, userId, userName }, (res) => {
+      socket.emit('join_room', { roomId, userId, name: userName }, (res) => {
         if (res && (res.success || res.message === 'User already in room')) {
           socket.currentRoom = roomId;
           setIsConnected(true);

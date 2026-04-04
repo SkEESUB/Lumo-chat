@@ -8,10 +8,7 @@ export function initializeSocket(io) {
     const users = Array.from(room.users.values());
 
     const counts = {
-      online: users.filter(u => u.status === "online").length,
-      idle: users.filter(u => u.status === "idle").length,
-      offline: users.filter(u => u.status === "offline").length,
-      total: users.length
+      online: users.length
     };
 
     io.to(roomId).emit("room_data", {
@@ -50,9 +47,6 @@ export function initializeSocket(io) {
           users: new Map(),
           creator: { userId, name }
         });
-      } else {
-        const room = rooms.get(roomId);
-        room.creator = { userId, name };
       }
     });
 
@@ -61,7 +55,7 @@ export function initializeSocket(io) {
     // ========================
     socket.on('join_room', (data, callback) => {
       try {
-        const { roomId, userId, userName } = data || {};
+        const { roomId, userId, name } = data || {};
         console.log("JOIN RECEIVED:", data);
 
         if (!roomId || !userId) {
@@ -73,17 +67,17 @@ export function initializeSocket(io) {
         if (!rooms.has(roomId)) {
           rooms.set(roomId, {
             users: new Map(),
-            creator: { userId, name: userName }
+            creator: { userId, name }
           });
         }
 
         const room = rooms.get(roomId);
 
         room.users.set(userId, {
-          id: userId, // Match frontend expectations safely
+          id: userId,
           userId,
-          username: userName, // match frontend mappings
-          name: userName,
+          username: name,
+          name,
           status: "online",
           lastSeen: Date.now(),
           socketId: socket.id,
@@ -92,7 +86,7 @@ export function initializeSocket(io) {
 
         socket.join(roomId);
         socket.currentRoom = roomId;
-        socket.username = userName;
+        socket.username = name;
         socket.userId = userId;
 
         socket.emit("room_info", {
@@ -104,10 +98,10 @@ export function initializeSocket(io) {
 
         io.to(roomId).emit("user_online", {
           userId,
-          userName
+          userName: name
         });
 
-        console.log("✅ User joined:", userName, roomId);
+        console.log("✅ User joined:", name, roomId);
 
         emitRoomData(roomId);
 

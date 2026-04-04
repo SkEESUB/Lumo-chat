@@ -28,7 +28,7 @@ export default function ChatRoom() {
   if (!userName) {
     userName = prompt("Enter your name") || "Guest";
   }
-  
+
   localStorage.setItem("userName", userName);
 
   const [username] = useState(userName);
@@ -140,12 +140,12 @@ export default function ChatRoom() {
 
     const onLoadMessages = (msgs) => {
       if (msgs) {
-         setMessages(prev => {
-            const currentIds = new Set(prev.map(m => m.id));
-            const newMsgs = msgs.filter(m => !currentIds.has(m.id));
-            if (newMsgs.length === 0) return prev;
-            return [...prev, ...newMsgs].sort((a,b) => a.timestamp - b.timestamp);
-         });
+        setMessages(prev => {
+          const currentIds = new Set(prev.map(m => m.id));
+          const newMsgs = msgs.filter(m => !currentIds.has(m.id));
+          if (newMsgs.length === 0) return prev;
+          return [...prev, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp);
+        });
       }
     };
 
@@ -197,7 +197,7 @@ export default function ChatRoom() {
 
     const onUserJoined = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
     const onUserLeft = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
-    
+
     const onRoomData = (data) => {
       if (!data) return;
       setOnlineUsers(data.users || []);
@@ -318,7 +318,7 @@ export default function ChatRoom() {
 
     try {
       const response = await fetch(
-        "https://api.cloudinary.com/v1_1/dfdhdeccgw/auto/upload",
+        "https://api.cloudinary.com/v1_1/dfdhdccgw/auto/upload",
         { method: "POST", body: formData }
       );
       if (!response.ok) {
@@ -376,7 +376,7 @@ export default function ChatRoom() {
 
   return (
     <div className="chat-wrapper">
-      <Header 
+      <Header
         roomId={roomId}
         counts={counts}
         onInfoClick={() => setShowInfoPanel(true)}
@@ -404,7 +404,7 @@ export default function ChatRoom() {
         Powered by Eesub Labs
       </div>
 
-      <RoomInfoPanel 
+      <RoomInfoPanel
         isOpen={showInfoPanel}
         onClose={() => setShowInfoPanel(false)}
         roomId={roomId}

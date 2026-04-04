@@ -139,7 +139,7 @@ export default function MessagesList({
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  key={msg.id || \`system-\${idx}\`}
+                  key={msg.id || `system-${idx}`}
                   className="flex justify-center my-4 w-full"
                 >
                   <span className="text-[11px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full border border-white/5 shadow-sm backdrop-blur-md">
@@ -167,10 +167,10 @@ export default function MessagesList({
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                key={msg.id || \`msg-\${idx}\`}
-                className={\`flex \${isMe ? 'justify-end' : 'justify-start'} group w-full \${marginTopClass} relative z-10\`}
+                key={msg.id || `msg-${idx}`}
+                className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full ${marginTopClass} relative z-10`}
               >
-                <div className={\`flex \${isMe ? 'justify-end' : 'justify-start'} w-full md:max-w-[85%] max-w-[90%]\`}>
+                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} w-full md:max-w-[85%] max-w-[90%]`}>
                   <MessageBubble 
                     msg={msg} 
                     isMe={isMe} 

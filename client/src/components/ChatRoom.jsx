@@ -17,19 +17,19 @@ export default function ChatRoom() {
 
   const state = location.state || {};
 
-  let userId = localStorage.getItem("userId");
+  let userId = sessionStorage.getItem("userId");
   if (!userId) {
     userId = crypto.randomUUID();
-    localStorage.setItem("userId", userId);
+    sessionStorage.setItem("userId", userId);
   }
 
-  let userName = state.username || localStorage.getItem("userName");
+  let userName = state.username || sessionStorage.getItem("userName") || localStorage.getItem("userName");
 
   if (!userName) {
     userName = prompt("Enter your name") || "Guest";
   }
   
-  // Always keep localStorage updated with the current active name logic 
+  sessionStorage.setItem("userName", userName);
   localStorage.setItem("userName", userName);
 
   const [username] = useState(userName);
@@ -80,7 +80,7 @@ export default function ChatRoom() {
   useEffect(() => {
     if (!socket || !userId) return;
     const activityInterval = setInterval(() => {
-      if (socket.connected) {
+      if (socket.connected && !document.hidden) {
         socket.emit("user_activity", { userId });
       }
     }, 15000);
@@ -96,10 +96,8 @@ export default function ChatRoom() {
 
     connectSocket();
 
-    let hasJoined = false;
-
     const tryJoin = () => {
-      if (hasJoined) return;
+      if (hasJoinedRef.current) return;
 
       if (!roomId || !userId || !username) {
         console.log("❌ Missing join data", { roomId, userId, name: username });
@@ -111,7 +109,7 @@ export default function ChatRoom() {
       console.log("JOIN DATA:", { roomId, userId, name: username });
       console.log("✅ Joining room:", { roomId, userId, name: username });
 
-      hasJoined = true;
+      hasJoinedRef.current = true;
 
       socket.emit('join_room', { roomId, userId, name: username }, (res) => {
         if (res && (res.success || res.message === 'User already in room')) {
@@ -131,7 +129,7 @@ export default function ChatRoom() {
 
     const onConnect = () => {
       setIsConnected(true);
-      hasJoined = false; // Reset to allow rejoin
+      hasJoinedRef.current = false; // Reset to allow rejoin
       socket.emit("reconnect_user", { userId });
       tryJoin();
     };
@@ -139,7 +137,7 @@ export default function ChatRoom() {
     socket.on('connect', onConnect);
     socket.on('disconnect', () => {
       setIsConnected(false);
-      hasJoined = false;
+      hasJoinedRef.current = false;
     });
 
     const onLoadMessages = (msgs) => {
@@ -199,7 +197,7 @@ export default function ChatRoom() {
       if (!data) return;
       setOnlineUsers(data.users || []);
       setCounts(data.counts || { online: 0, idle: 0, offline: 0, total: 0 });
-      if (data.creator) setRoomCreator(data.creator);
+      if (data.creator && data.creator.name) setRoomCreator(data.creator.name);
     };
 
     const onUserTyping = ({ username: typingUsername }) => {
@@ -314,7 +312,7 @@ export default function ChatRoom() {
 
     try {
       const response = await fetch(
-        "https://api.cloudinary.com/v1_1/dfdhdccgw/auto/upload",
+        "https://api.cloudinary.com/v1_1/dfdhdeccgw/auto/upload",
         { method: "POST", body: formData }
       );
       if (!response.ok) {

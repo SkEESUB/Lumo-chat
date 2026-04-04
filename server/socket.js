@@ -103,6 +103,11 @@ export function initializeSocket(io) {
           userId,
           username: name
         });
+        
+        io.to(roomId).emit("user_joined", {
+          id: generateId(),
+          message: `${name} has joined the chat`
+        });
 
         console.log("✅ User joined:", name, roomId);
 
@@ -145,6 +150,7 @@ export function initializeSocket(io) {
           text: data.text || data.message || '',
           fileUrl: data.fileUrl || null,
           fileType: data.fileType || null,
+          type: data.type || 'chat',
           status: 'sent',
           timestamp: Date.now(),
         };
@@ -271,6 +277,10 @@ export function initializeSocket(io) {
             user.status = "offline";
             user.lastSeen = Date.now();
             changed = true;
+            io.to(roomId).emit("user_left", {
+              id: generateId(),
+              message: `${user.username || user.name} has left the chat`
+            });
           }
         });
         if (changed) {

@@ -1,14 +1,18 @@
-const rooms = new Map(); // roomId => { users: Map(userId => userData), creator: { userId, name } }
-let messages = {}; // roomId => []
+const rooms = new Map();
+let messages = {};
 
 export function initializeSocket(io) {
+
   function emitRoomData(roomId) {
     if (!rooms.has(roomId)) return;
+
     const room = rooms.get(roomId);
     const users = Array.from(room.users.values());
 
     const counts = {
-      online: users.length
+      online: users.filter(u => u.status === "online").length,
+      idle: users.filter(u => u.status === "idle").length,
+      offline: users.filter(u => u.status === "offline").length
     };
 
     io.to(roomId).emit("room_data", {
@@ -18,284 +22,144 @@ export function initializeSocket(io) {
     });
   }
 
-  // 5. IDLE DETECTION
+  // IDLE DETECTION
   setInterval(() => {
     const now = Date.now();
+
     rooms.forEach((room, roomId) => {
       let changed = false;
-      room.users.forEach((user, userId) => {
+
+      room.users.forEach((user) => {
         if (user.status === "online" && now - user.lastSeen > 60000) {
           user.status = "idle";
           changed = true;
         }
       });
-      if (changed) {
-        emitRoomData(roomId);
-      }
+
+      if (changed) emitRoomData(roomId);
     });
+
   }, 10000);
 
-  io.on('connection', (socket) => {
-    console.log(`🔥 User connected: ${socket.id}`);
 
-    // ========================
-    // CREATE ROOM
-    // ========================
-    socket.on("create_room", ({ roomId, userId, name }) => {
+  io.on("connection", (socket) => {
+
+    console.log("🔥 Connected:", socket.id);
+
+    // ================= CREATE ROOM =================
+    socket.on("create_room", ({ roomId, name }) => {
       if (!rooms.has(roomId)) {
         rooms.set(roomId, {
           users: new Map(),
-          creator: { userId, name }
+          creator: { name } // set ONCE only
         });
       }
     });
 
-    // ========================
-    // JOIN ROOM
-    // ========================
-    socket.on('join_room', (data, callback) => {
-      try {
-        const { roomId, userId, name } = data || {};
-        console.log("JOIN RECEIVED:", data);
+    // ================= JOIN ROOM =================
+    socket.on("join_room", ({ roomId, name }, callback) => {
 
-        if (!roomId || !userId) {
-          console.log("❌ Invalid join data:", data);
-          if (callback) return safeCallback(callback, { success: false, message: 'Invalid data' });
-          return;
-        }
-
-        if (!rooms.has(roomId)) {
-          rooms.set(roomId, {
-            users: new Map(),
-            creator: { userId, name }
-          });
-        }
-
-        const room = rooms.get(roomId);
-
-        room.users.set(userId, {
-          id: userId,
-          userId,
-          username: name,
-          name,
-          status: "online",
-          lastSeen: Date.now(),
-          socketId: socket.id,
-          roomId
-        });
-
-        socket.join(roomId);
-        socket.currentRoom = roomId;
-        socket.username = name;
-        socket.userId = userId;
-
-        socket.emit("room_info", {
-          creatorName: room.creator?.name || "Unknown"
-        });
-
-        const oldMessages = messages[roomId] || [];
-        socket.emit("load_messages", oldMessages);
-
-        io.to(roomId).emit("user_online", {
-          userId,
-          userName: name
-        });
-
-        console.log("✅ User joined:", name, roomId);
-
-        emitRoomData(roomId);
-
-        if (callback) {
-          safeCallback(callback, {
-            success: true,
-            message: 'Joined successfully',
-            room: { roomId }
-          });
-        }
-
-      } catch (err) {
-        console.error("JOIN ERROR:", err);
-        if (callback) safeCallback(callback, { success: false, message: 'Server error while joining' });
+      if (!roomId || !name) {
+        return safeCallback(callback, { success: false });
       }
-    });
 
-    // ========================
-    // SEND MESSAGE
-    // ========================
-    socket.on('send_message', (data = {}, callback) => {
-      try {
-        const room = socket.currentRoom;
-        if (!room) return;
-
-        if (!data.text && !data.fileUrl) {
-          return safeCallback(callback, {
-            success: false,
-            message: 'Empty message',
-          });
-        }
-
-        const messageData = {
-          id: generateId(),
-          senderId: socket.id,
-          senderName: socket.username,
-          roomId: room,
-          text: data.text || '',
-          fileUrl: data.fileUrl || null,
-          fileType: data.fileType || null,
-          status: 'sent',
-          timestamp: Date.now(),
-        };
-
-        if (!messages[room]) {
-          messages[room] = [];
-        }
-        messages[room].push(messageData);
-
-        io.to(room).emit('receive_message', messageData);
-
-        console.log(`📩 Message from ${socket.username}`);
-
-        safeCallback(callback, {
-          success: true,
-          messageId: messageData.id,
+      // create room if not exists
+      if (!rooms.has(roomId)) {
+        rooms.set(roomId, {
+          users: new Map(),
+          creator: { name }
         });
-
-      } catch (err) {
-        console.error('❌ send_message error:', err);
       }
-    });
 
-    // ========================
-    // MESSAGE STATUS
-    // ========================
-    socket.on('message_delivered', ({ messageId, roomId }) => {
-      io.to(roomId).emit('update_status', {
-        messageId,
-        status: 'delivered'
+      const room = rooms.get(roomId);
+
+      // 🔥 FIX: use socket.id (NOT userId)
+      room.users.set(socket.id, {
+        id: socket.id,
+        name,
+        status: "online",
+        lastSeen: Date.now()
       });
-    });
 
-    socket.on('message_seen', ({ messageId, roomId }) => {
-      io.to(roomId).emit('update_status', {
-        messageId,
-        status: 'seen'
+      socket.join(roomId);
+      socket.roomId = roomId;
+      socket.username = name;
+
+      // send creator
+      socket.emit("room_info", {
+        creatorName: room.creator?.name || "Unknown"
       });
+
+      // load messages
+      socket.emit("load_messages", messages[roomId] || []);
+
+      emitRoomData(roomId);
+
+      safeCallback(callback, { success: true });
     });
 
-    // ========================
-    // TYPING
-    // ========================
-    socket.on('typing', (roomId) => {
-      if (!roomId) roomId = socket.currentRoom;
-      socket.to(roomId).emit('user_typing', {
-        userId: socket.id,
-        username: socket.username
-      });
+
+    // ================= SEND MESSAGE =================
+    socket.on("send_message", (data = {}, callback) => {
+      const roomId = socket.roomId;
+      if (!roomId) return;
+
+      const message = {
+        id: generateId(),
+        senderName: socket.username,
+        text: data.text || "",
+        fileUrl: data.fileUrl || null,
+        timestamp: Date.now()
+      };
+
+      if (!messages[roomId]) messages[roomId] = [];
+      messages[roomId].push(message);
+
+      io.to(roomId).emit("receive_message", message);
+
+      safeCallback(callback, { success: true });
     });
 
-    // ========================
-    // STOP TYPING
-    // ========================
-    socket.on('stop_typing', (roomId) => {
-      if (!roomId) roomId = socket.currentRoom;
-      socket.to(roomId).emit('user_stop_typing', {
-        userId: socket.id,
-        username: socket.username
-      });
+
+    // ================= USER ACTIVITY =================
+    socket.on("user_activity", () => {
+      const roomId = socket.roomId;
+      if (!rooms.has(roomId)) return;
+
+      const user = rooms.get(roomId).users.get(socket.id);
+      if (!user) return;
+
+      user.lastSeen = Date.now();
+      user.status = "online";
+
+      emitRoomData(roomId);
     });
 
-    // ========================
-    // USER STATUS
-    // ========================
-    socket.on("user_activity", ({ userId, roomId }) => {
-      const roomToUpdate = roomId || socket.currentRoom;
-      if (rooms.has(roomToUpdate)) {
-        const room = rooms.get(roomToUpdate);
-        if (room.users.has(userId)) {
-          const user = room.users.get(userId);
-          user.lastSeen = Date.now();
-          user.status = "online";
-          emitRoomData(roomToUpdate);
-        }
-      }
-    });
 
-    socket.on("reconnect_user", ({ userId }) => {
+    // ================= DISCONNECT =================
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected:", socket.id);
+
       rooms.forEach((room, roomId) => {
-        if (room.users.has(userId)) {
-          const user = room.users.get(userId);
-          user.status = "online";
-          user.socketId = socket.id;
-          socket.join(roomId);
-          socket.currentRoom = roomId;
-          socket.username = user.name;
-          socket.userId = userId;
+        if (room.users.has(socket.id)) {
+          const user = room.users.get(socket.id);
+          user.status = "offline";
+          user.lastSeen = Date.now();
+
           emitRoomData(roomId);
         }
       });
     });
 
-    // Backwards compatibility
-    socket.on("user_idle", () => {
-      const roomId = socket.currentRoom;
-      if (rooms.has(roomId)) {
-        const room = rooms.get(roomId);
-        if (room.users.has(socket.userId)) {
-          const user = room.users.get(socket.userId);
-          user.status = "idle";
-          user.lastSeen = Date.now();
-          emitRoomData(roomId);
-        }
-      }
-    });
-
-    socket.on("user_active", () => {
-      const roomId = socket.currentRoom;
-      if (rooms.has(roomId)) {
-        const room = rooms.get(roomId);
-        if (room.users.has(socket.userId)) {
-          const user = room.users.get(socket.userId);
-          user.status = "online";
-          user.lastSeen = Date.now();
-          emitRoomData(roomId);
-        }
-      }
-    });
-
-    // ========================
-    // DISCONNECT
-    // ========================
-    socket.on('disconnect', () => {
-      console.log(`❌ User disconnected: ${socket.id}`);
-      rooms.forEach((room, roomId) => {
-        let changed = false;
-        room.users.forEach((user, userId) => {
-          if (user.socketId === socket.id) {
-            user.status = "offline";
-            user.lastSeen = Date.now();
-            changed = true;
-          }
-        });
-        if (changed) {
-          emitRoomData(roomId);
-        }
-      });
-    });
   });
 }
 
-// ========================
-// SAFE CALLBACK
-// ========================
+
+// ================= HELPERS =================
 function safeCallback(cb, data) {
-  if (typeof cb === 'function') {
-    cb(data);
-  }
+  if (typeof cb === "function") cb(data);
 }
 
-// ========================
-// GENERATE ID
-// ========================
 function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }

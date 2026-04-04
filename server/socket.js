@@ -1,11 +1,9 @@
-const rooms = new Map(); // roomId => { users: Map(), creator }
-let messages = {};
+const rooms = new Map(); // roomId => { users: Map(userId => userData), creator: { userId, name } }
+let messages = {}; // roomId => []
 
 export function initializeSocket(io) {
-
   function emitRoomData(roomId) {
     if (!rooms.has(roomId)) return;
-
     const room = rooms.get(roomId);
     const users = Array.from(room.users.values());
 
@@ -23,28 +21,31 @@ export function initializeSocket(io) {
     });
   }
 
-  // Idle detection
+  // 5. IDLE DETECTION
   setInterval(() => {
     const now = Date.now();
     rooms.forEach((room, roomId) => {
       let changed = false;
-
-      room.users.forEach(user => {
+      room.users.forEach((user, userId) => {
         if (user.status === "online" && now - user.lastSeen > 60000) {
           user.status = "idle";
           changed = true;
         }
       });
-
-      if (changed) emitRoomData(roomId);
+      if (changed) {
+        emitRoomData(roomId);
+      }
     });
   }, 10000);
 
-  io.on("connection", (socket) => {
+  io.on('connection', (socket) => {
+    console.log(`🔥 User connected: ${socket.id}`);
 
+    // ========================
     // CREATE ROOM
+    // ========================
     socket.on("create_room", ({ roomId, userId, name }) => {
-      if (!rooms.has(roomId)) {
+      if (roomId && userId && name && !rooms.has(roomId)) {
         rooms.set(roomId, {
           users: new Map(),
           creator: { userId, name }
@@ -52,94 +53,243 @@ export function initializeSocket(io) {
       }
     });
 
+    // ========================
     // JOIN ROOM
-    socket.on("join_room", ({ roomId, userId, name }, callback) => {
+    // ========================
+    socket.on('join_room', (data, callback) => {
+      try {
+        const { roomId, userId, name } = data || {};
+        console.log("JOIN RECEIVED:", data);
 
-      if (!roomId || !userId || !name) {
-        return callback?.({ success: false, message: "Invalid join data" });
+        if (!roomId || !userId || !name) {
+          console.log("❌ Invalid join data:", data);
+          if (callback) return safeCallback(callback, { success: false, message: 'Invalid data' });
+          return;
+        }
+
+        if (!rooms.has(roomId)) {
+          rooms.set(roomId, {
+            users: new Map(),
+            creator: { userId, name }
+          });
+        }
+
+        const room = rooms.get(roomId);
+
+        room.users.set(userId, {
+          id: userId,
+          userId,
+          username: name,
+          name,
+          status: "online",
+          lastSeen: Date.now(),
+          socketId: socket.id,
+          roomId
+        });
+
+        socket.join(roomId);
+        socket.currentRoom = roomId;
+        socket.username = name;
+        socket.userId = userId;
+
+        socket.emit("room_info", {
+          creatorName: room.creator?.name || "Unknown"
+        });
+
+        const oldMessages = messages[roomId] || [];
+        socket.emit("load_messages", oldMessages);
+
+        io.to(roomId).emit("user_online", {
+          userId,
+          username: name
+        });
+
+        console.log("✅ User joined:", name, roomId);
+
+        emitRoomData(roomId);
+
+        if (callback) {
+          safeCallback(callback, {
+            success: true,
+            message: 'Joined successfully',
+            room: { roomId }
+          });
+        }
+
+      } catch (err) {
+        console.error("JOIN ERROR:", err);
+        if (callback) safeCallback(callback, { success: false, message: 'Server error while joining' });
       }
+    });
 
-      if (!rooms.has(roomId)) {
-        rooms.set(roomId, {
-          users: new Map(),
-          creator: { userId, name }
+    // ========================
+    // SEND MESSAGE
+    // ========================
+    socket.on('send_message', (data = {}, callback) => {
+      try {
+        const room = socket.currentRoom;
+        if (!room) return;
+
+        if (!data.text && !data.fileUrl && !data.message) {
+          return safeCallback(callback, {
+            success: false,
+            message: 'Empty message',
+          });
+        }
+
+        const messageData = {
+          id: generateId(),
+          senderId: socket.userId, // USER ID INSTEAD OF SOCKET ID
+          senderName: socket.username,
+          roomId: room,
+          text: data.text || data.message || '',
+          fileUrl: data.fileUrl || null,
+          fileType: data.fileType || null,
+          status: 'sent',
+          timestamp: Date.now(),
+        };
+
+        if (!messages[room]) {
+          messages[room] = [];
+        }
+        messages[room].push(messageData);
+
+        io.to(room).emit('receive_message', messageData);
+
+        console.log(`📩 Message from ${socket.username}`);
+
+        safeCallback(callback, {
+          success: true,
+          messageId: messageData.id,
+        });
+
+      } catch (err) {
+        console.error('❌ send_message error:', err);
+      }
+    });
+
+    // ========================
+    // MESSAGE STATUS
+    // ========================
+    socket.on('message_delivered', ({ messageId, roomId }) => {
+      if (roomId) io.to(roomId).emit('update_status', { messageId, status: 'delivered' });
+    });
+
+    socket.on('message_seen', ({ messageId, roomId }) => {
+      if (roomId) io.to(roomId).emit('update_status', { messageId, status: 'seen' });
+    });
+
+    // ========================
+    // TYPING
+    // ========================
+    socket.on('typing', (roomId) => {
+      if (!roomId) roomId = socket.currentRoom;
+      if (roomId) {
+        socket.to(roomId).emit('user_typing', {
+          userId: socket.userId,
+          username: socket.username
         });
       }
-
-      const room = rooms.get(roomId);
-
-      room.users.set(userId, {
-        userId,
-        name,
-        status: "online",
-        lastSeen: Date.now(),
-        socketId: socket.id
-      });
-
-      socket.join(roomId);
-      socket.currentRoom = roomId;
-      socket.userId = userId;
-      socket.username = name;
-
-      socket.emit("room_info", {
-        creatorName: room.creator?.name || "Unknown"
-      });
-
-      socket.emit("load_messages", messages[roomId] || []);
-
-      emitRoomData(roomId);
-
-      callback?.({ success: true });
     });
 
-    // SEND MESSAGE
-    socket.on("send_message", (data) => {
-      const roomId = socket.currentRoom;
-      if (!roomId) return;
-
-      const message = {
-        id: Date.now().toString(),
-        senderId: socket.userId,
-        senderName: socket.username,
-        text: data.text || "",
-        fileUrl: data.fileUrl || null,
-        fileType: data.fileType || null,
-        roomId,
-        status: "sent",
-        timestamp: Date.now()
-      };
-
-      if (!messages[roomId]) messages[roomId] = [];
-      messages[roomId].push(message);
-
-      io.to(roomId).emit("receive_message", message);
-    });
-
-    // ACTIVITY
-    socket.on("user_activity", ({ userId, roomId }) => {
-      if (!rooms.has(roomId)) return;
-
-      const room = rooms.get(roomId);
-      const user = room.users.get(userId);
-
-      if (user) {
-        user.status = "online";
-        user.lastSeen = Date.now();
-        emitRoomData(roomId);
+    socket.on('stop_typing', (roomId) => {
+      if (!roomId) roomId = socket.currentRoom;
+      if (roomId) {
+        socket.to(roomId).emit('user_stop_typing', {
+          userId: socket.userId,
+          username: socket.username
+        });
       }
     });
 
-    // DISCONNECT
-    socket.on("disconnect", () => {
+    // ========================
+    // USER STATUS
+    // ========================
+    socket.on("user_activity", ({ userId, roomId }) => {
+      const roomToUpdate = roomId || socket.currentRoom;
+      if (rooms.has(roomToUpdate)) {
+        const room = rooms.get(roomToUpdate);
+        if (room.users.has(userId)) {
+          const user = room.users.get(userId);
+          user.lastSeen = Date.now();
+          user.status = "online";
+          emitRoomData(roomToUpdate);
+        }
+      }
+    });
+
+    socket.on("reconnect_user", ({ userId }) => {
       rooms.forEach((room, roomId) => {
-        room.users.forEach(user => {
+        if (room.users.has(userId)) {
+          const user = room.users.get(userId);
+          user.status = "online";
+          user.socketId = socket.id;
+          socket.join(roomId);
+          socket.currentRoom = roomId;
+          socket.username = user.name;
+          socket.userId = userId;
+          emitRoomData(roomId);
+        }
+      });
+    });
+
+    socket.on("user_idle", () => {
+      const roomId = socket.currentRoom;
+      if (rooms.has(roomId)) {
+        const room = rooms.get(roomId);
+        if (room.users.has(socket.userId)) {
+          const user = room.users.get(socket.userId);
+          user.status = "idle";
+          user.lastSeen = Date.now();
+          emitRoomData(roomId);
+        }
+      }
+    });
+
+    socket.on("user_active", () => {
+      const roomId = socket.currentRoom;
+      if (rooms.has(roomId)) {
+        const room = rooms.get(roomId);
+        if (room.users.has(socket.userId)) {
+          const user = room.users.get(socket.userId);
+          user.status = "online";
+          user.lastSeen = Date.now();
+          emitRoomData(roomId);
+        }
+      }
+    });
+
+    // ========================
+    // DISCONNECT
+    // ========================
+    socket.on('disconnect', () => {
+      console.log(`❌ User disconnected: ${socket.id}`);
+      rooms.forEach((room, roomId) => {
+        let changed = false;
+        room.users.forEach((user, userId) => {
           if (user.socketId === socket.id) {
             user.status = "offline";
             user.lastSeen = Date.now();
+            changed = true;
           }
         });
-        emitRoomData(roomId);
+        if (changed) {
+          emitRoomData(roomId);
+          io.to(roomId).emit("user_offline", {
+            userId: socket.userId
+          });
+        }
       });
     });
   });
+}
+
+function safeCallback(cb, data) {
+  if (typeof cb === 'function') {
+    cb(data);
+  }
+}
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 }

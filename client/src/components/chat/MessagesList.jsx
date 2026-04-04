@@ -71,7 +71,7 @@ const MessageStatus = () => {
 
 export default function MessagesList({ 
   messages, 
-  socketId, 
+  userId, 
   onReact, 
   typingUsers, 
   username 
@@ -104,7 +104,7 @@ export default function MessagesList({
     }, 600);
   };
 
-  if (messages.length === 0) {
+  if (!messages || messages.length === 0) {
     return (
       <main className="chat-body flex items-center justify-center">
         <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col gap-3 justify-center items-center h-full">
@@ -121,29 +121,45 @@ export default function MessagesList({
     );
   }
 
+  // Deduplicate messages safely 
+  const uniqueMessagesMap = new Map();
+  messages.forEach(msg => {
+    if (msg && msg.id) uniqueMessagesMap.set(msg.id, msg);
+  });
+  const filteredMessages = Array.from(uniqueMessagesMap.values());
+
   return (
     <>
     <main className="chat-body" ref={chatRef} onScroll={handleScroll}>
-      <div className="max-w-2xl mx-auto flex flex-col gap-3 relative pb-4">
+      <div className="max-w-2xl mx-auto flex flex-col relative pb-4 px-2">
         <AnimatePresence initial={false}>
-          {messages.map((msg, idx) => {
+          {filteredMessages.map((msg, idx) => {
             if (msg.type === 'system') {
               return (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  key={idx}
-                  className="flex justify-center my-4"
+                  key={msg.id || \`system-\${idx}\`}
+                  className="flex justify-center my-4 w-full"
                 >
                   <span className="text-[11px] bg-white/5 text-gray-400 px-4 py-1.5 rounded-full border border-white/5 shadow-sm backdrop-blur-md">
-                    {msg.message}
+                    {msg.message || "System event"}
                   </span>
                 </motion.div>
               );
             }
 
-            const isMe = msg.senderId === socketId;
-            const userHsl = stringToHSL(msg.senderName);
+            const isMe = msg.senderId === userId;
+            const senderName = msg.senderName || 'Unknown';
+            const userHsl = stringToHSL(senderName);
+
+            // Clustering logic for WhatsApp-like UI (Avatar once, spacing adjusted)
+            const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null;
+            const isSameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId && prevMsg.type !== 'system';
+            const showAvatarAndName = !isMe && !isSameSenderAsPrev;
+            
+            // Adjust margin top if cluster changed
+            const marginTopClass = isSameSenderAsPrev ? 'mt-[2px]' : 'mt-3';
 
             return (
               <motion.div
@@ -151,17 +167,21 @@ export default function MessagesList({
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                key={msg.id}
-                className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full mb-1 mt-1 relative z-10`}
+                key={msg.id || \`msg-\${idx}\`}
+                className={\`flex \${isMe ? 'justify-end' : 'justify-start'} group w-full \${marginTopClass} relative z-10\`}
               >
-                <MessageBubble 
-                  msg={msg} 
-                  isMe={isMe} 
-                  userHsl={userHsl} 
-                  onRipple={triggerRipple}
-                  activeRipple={activeRipple}
-                  onReact={onReact}
-                />
+                <div className={\`flex \${isMe ? 'justify-end' : 'justify-start'} w-full md:max-w-[85%] max-w-[90%]\`}>
+                  <MessageBubble 
+                    msg={msg} 
+                    isMe={isMe} 
+                    userHsl={userHsl} 
+                    onRipple={triggerRipple}
+                    activeRipple={activeRipple}
+                    onReact={onReact}
+                    showAvatarAndName={showAvatarAndName}
+                    senderName={senderName}
+                  />
+                </div>
               </motion.div>
             );
           })}

@@ -75,6 +75,16 @@ export function initializeSocket(io) {
         }
 
         const room = rooms.get(roomId);
+        
+        if (room.creator && room.creator.userId === userId && (!room.creator.name || room.creator.name === "Unknown")) {
+          room.creator.name = name;
+        }
+
+        let isNewJoin = false;
+        
+        if (!room.users.has(userId)) {
+          isNewJoin = true;
+        }
 
         room.users.set(userId, {
           id: userId,
@@ -104,10 +114,12 @@ export function initializeSocket(io) {
           username: name
         });
         
-        io.to(roomId).emit("user_joined", {
-          id: generateId(),
-          message: `${name} has joined the chat`
-        });
+        if (isNewJoin) {
+          io.to(roomId).emit("user_joined", {
+            id: generateId(),
+            message: `${name} has joined the chat`
+          });
+        }
 
         console.log("✅ User joined:", name, roomId);
 
@@ -144,10 +156,10 @@ export function initializeSocket(io) {
 
         const messageData = {
           id: generateId(),
-          senderId: socket.userId, // USER ID INSTEAD OF SOCKET ID
+          senderId: socket.userId, 
           senderName: socket.username,
           roomId: room,
-          text: data.text || data.message || '',
+          text: data.text || '',
           fileUrl: data.fileUrl || null,
           fileType: data.fileType || null,
           type: data.type || 'chat',
@@ -224,21 +236,6 @@ export function initializeSocket(io) {
       }
     });
 
-    socket.on("reconnect_user", ({ userId }) => {
-      rooms.forEach((room, roomId) => {
-        if (room.users.has(userId)) {
-          const user = room.users.get(userId);
-          user.status = "online";
-          user.socketId = socket.id;
-          socket.join(roomId);
-          socket.currentRoom = roomId;
-          socket.username = user.name;
-          socket.userId = userId;
-          emitRoomData(roomId);
-        }
-      });
-    });
-
     socket.on("user_idle", () => {
       const roomId = socket.currentRoom;
       if (rooms.has(roomId)) {
@@ -266,6 +263,29 @@ export function initializeSocket(io) {
     });
 
     // ========================
+    // LEAVE ROOM
+    // ========================
+    socket.on("leave_room", (data) => {
+      const roomId = data?.roomId || socket.currentRoom;
+      const userId = data?.userId || socket.userId;
+      
+      if (!roomId || !userId) return;
+
+      if (rooms.has(roomId)) {
+        const room = rooms.get(roomId);
+        if (room.users.has(userId)) {
+          const user = room.users.get(userId);
+          room.users.delete(userId);
+          io.to(roomId).emit("user_left", {
+            id: generateId(),
+            message: `${user.name || user.username} has left the chat`
+          });
+          emitRoomData(roomId);
+        }
+      }
+    });
+
+    // ========================
     // DISCONNECT
     // ========================
     socket.on('disconnect', () => {
@@ -277,10 +297,6 @@ export function initializeSocket(io) {
             user.status = "offline";
             user.lastSeen = Date.now();
             changed = true;
-            io.to(roomId).emit("user_left", {
-              id: generateId(),
-              message: `${user.username || user.name} has left the chat`
-            });
           }
         });
         if (changed) {

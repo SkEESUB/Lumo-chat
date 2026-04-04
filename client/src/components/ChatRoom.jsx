@@ -17,19 +17,18 @@ export default function ChatRoom() {
 
   const state = location.state || {};
 
-  let userId = sessionStorage.getItem("userId");
+  let userId = localStorage.getItem("userId");
   if (!userId) {
     userId = crypto.randomUUID();
-    sessionStorage.setItem("userId", userId);
+    localStorage.setItem("userId", userId);
   }
 
-  let userName = state.username || sessionStorage.getItem("userName") || localStorage.getItem("userName");
+  let userName = state.username || localStorage.getItem("userName");
 
   if (!userName) {
     userName = prompt("Enter your name") || "Guest";
   }
   
-  sessionStorage.setItem("userName", userName);
   localStorage.setItem("userName", userName);
 
   const [username] = useState(userName);
@@ -130,7 +129,6 @@ export default function ChatRoom() {
     const onConnect = () => {
       setIsConnected(true);
       hasJoinedRef.current = false; // Reset to allow rejoin
-      socket.emit("reconnect_user", { userId });
       tryJoin();
     };
 
@@ -141,7 +139,14 @@ export default function ChatRoom() {
     });
 
     const onLoadMessages = (msgs) => {
-      if (msgs) setMessages(msgs);
+      if (msgs) {
+         setMessages(prev => {
+            const currentIds = new Set(prev.map(m => m.id));
+            const newMsgs = msgs.filter(m => !currentIds.has(m.id));
+            if (newMsgs.length === 0) return prev;
+            return [...prev, ...newMsgs].sort((a,b) => a.timestamp - b.timestamp);
+         });
+      }
     };
 
     const onReceiveMessage = (data) => {
@@ -277,6 +282,7 @@ export default function ChatRoom() {
   };
 
   const leaveRoom = () => {
+    socket.emit("leave_room", { roomId, userId });
     disconnectSocket();
     navigate('/');
   };
@@ -343,7 +349,7 @@ export default function ChatRoom() {
     if (fileURL) {
       socket.emit("send_message", {
         roomId,
-        message: fileURL,
+        text: "", // Ensure no raw text string is displayed for files
         type: "file",
         fileUrl: fileURL,
         fileType: file.type.startsWith("image/") ? "image" : "file"

@@ -1,13 +1,11 @@
-const rooms = new Map(); // roomId => Map(userId => userData)
+const rooms = new Map(); // roomId => { users: Map(userId => userData), creator: { userId, name } }
 let messages = {}; // roomId => []
-const roomMeta = new Map(); // roomId => { creatorName, creatorId }
-
-
 
 export function initializeSocket(io) {
   function emitRoomData(roomId) {
     if (!rooms.has(roomId)) return;
-    const users = Array.from(rooms.get(roomId).values());
+    const room = rooms.get(roomId);
+    const users = Array.from(room.users.values());
 
     const counts = {
       online: users.filter(u => u.status === "online").length,
@@ -18,16 +16,17 @@ export function initializeSocket(io) {
 
     io.to(roomId).emit("room_data", {
       users,
-      counts
+      counts,
+      creator: room.creator
     });
   }
 
   // 5. IDLE DETECTION
   setInterval(() => {
     const now = Date.now();
-    rooms.forEach((roomUsers, roomId) => {
+    rooms.forEach((room, roomId) => {
       let changed = false;
-      roomUsers.forEach((user, userId) => {
+      room.users.forEach((user, userId) => {
         if (user.status === "online" && now - user.lastSeen > 60000) {
           user.status = "idle";
           changed = true;
@@ -46,10 +45,15 @@ export function initializeSocket(io) {
     // CREATE ROOM
     // ========================
     socket.on("create_room", ({ roomId, userId, name }) => {
-      roomMeta.set(roomId, {
-        creatorName: name,
-        creatorId: userId
-      });
+      if (!rooms.has(roomId)) {
+        rooms.set(roomId, {
+          users: new Map(),
+          creator: { userId, name }
+        });
+      } else {
+        const room = rooms.get(roomId);
+        room.creator = { userId, name };
+      }
     });
 
     // ========================
@@ -67,12 +71,15 @@ export function initializeSocket(io) {
         }
 
         if (!rooms.has(roomId)) {
-          rooms.set(roomId, new Map());
+          rooms.set(roomId, {
+            users: new Map(),
+            creator: { userId, name: userName }
+          });
         }
 
-        const roomUsers = rooms.get(roomId);
+        const room = rooms.get(roomId);
 
-        roomUsers.set(userId, {
+        room.users.set(userId, {
           id: userId, // Match frontend expectations safely
           userId,
           username: userName, // match frontend mappings
@@ -88,17 +95,8 @@ export function initializeSocket(io) {
         socket.username = userName;
         socket.userId = userId;
 
-        // Ensure roomMeta gets created if it somehow doesn't exist yet (e.g. joined before create_room or API)
-        if (!roomMeta.has(roomId)) {
-          roomMeta.set(roomId, {
-            creatorName: userName,
-            creatorId: userId
-          });
-        }
-
-        const meta = roomMeta.get(roomId);
         socket.emit("room_info", {
-          creatorName: meta?.creatorName || "Unknown"
+          creatorName: room.creator?.name || "Unknown"
         });
 
         const oldMessages = messages[roomId] || [];
@@ -218,9 +216,9 @@ export function initializeSocket(io) {
     socket.on("user_activity", ({ userId, roomId }) => {
       const roomToUpdate = roomId || socket.currentRoom;
       if (rooms.has(roomToUpdate)) {
-        const roomUsers = rooms.get(roomToUpdate);
-        if (roomUsers.has(userId)) {
-          const user = roomUsers.get(userId);
+        const room = rooms.get(roomToUpdate);
+        if (room.users.has(userId)) {
+          const user = room.users.get(userId);
           user.lastSeen = Date.now();
           user.status = "online";
           emitRoomData(roomToUpdate);
@@ -229,9 +227,9 @@ export function initializeSocket(io) {
     });
 
     socket.on("reconnect_user", ({ userId }) => {
-      rooms.forEach((roomUsers, roomId) => {
-        if (roomUsers.has(userId)) {
-          const user = roomUsers.get(userId);
+      rooms.forEach((room, roomId) => {
+        if (room.users.has(userId)) {
+          const user = room.users.get(userId);
           user.status = "online";
           user.socketId = socket.id;
           socket.join(roomId);
@@ -247,9 +245,9 @@ export function initializeSocket(io) {
     socket.on("user_idle", () => {
       const roomId = socket.currentRoom;
       if (rooms.has(roomId)) {
-        const roomUsers = rooms.get(roomId);
-        if (roomUsers.has(socket.userId)) {
-          const user = roomUsers.get(socket.userId);
+        const room = rooms.get(roomId);
+        if (room.users.has(socket.userId)) {
+          const user = room.users.get(socket.userId);
           user.status = "idle";
           user.lastSeen = Date.now();
           emitRoomData(roomId);
@@ -260,9 +258,9 @@ export function initializeSocket(io) {
     socket.on("user_active", () => {
       const roomId = socket.currentRoom;
       if (rooms.has(roomId)) {
-        const roomUsers = rooms.get(roomId);
-        if (roomUsers.has(socket.userId)) {
-          const user = roomUsers.get(socket.userId);
+        const room = rooms.get(roomId);
+        if (room.users.has(socket.userId)) {
+          const user = room.users.get(socket.userId);
           user.status = "online";
           user.lastSeen = Date.now();
           emitRoomData(roomId);
@@ -275,9 +273,9 @@ export function initializeSocket(io) {
     // ========================
     socket.on('disconnect', () => {
       console.log(`❌ User disconnected: ${socket.id}`);
-      rooms.forEach((roomUsers, roomId) => {
+      rooms.forEach((room, roomId) => {
         let changed = false;
-        roomUsers.forEach((user, userId) => {
+        room.users.forEach((user, userId) => {
           if (user.socketId === socket.id) {
             user.status = "offline";
             user.lastSeen = Date.now();

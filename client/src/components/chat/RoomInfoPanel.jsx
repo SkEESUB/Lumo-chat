@@ -152,7 +152,7 @@ export default function RoomInfoPanel({
         </button>
 
         <div className="creator flex flex-col items-center gap-1 mt-4">
-          <span className="text-gray-400 text-xs">Created by {roomCreator || 'Unknown'}</span>
+          <span className="text-gray-400 text-xs">Created by {roomCreator?.name || 'Unknown'}</span>
           <span className="text-brand-300 text-xs font-semibold">Designed by Eesub</span>
         </div>
       </div>

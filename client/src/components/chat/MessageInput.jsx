@@ -30,7 +30,7 @@ export default function MessageInput({
           type="button"
           onClick={handleFileUpload}
           disabled={isUploading}
-          className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center shrink-0"
+          className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center shrink-0 relative"
           title="Upload File"
         >
           {isUploading ? (
@@ -39,6 +39,7 @@ export default function MessageInput({
             <Upload size={22} className="relative z-10" />
           )}
         </motion.button>
+        {isUploading && <p className="text-xs text-brand-400 font-medium whitespace-nowrap hidden sm:block">Uploading...</p>}
 
         <div className="flex-1 relative bg-transparent overflow-hidden pl-2">
           <input

@@ -21,7 +21,7 @@ export default function ChatRoom() {
   let userName = localStorage.getItem("userName");
 
   if (!userId) {
-    userId = Math.random().toString(36).slice(2);
+    userId = crypto.randomUUID();
     localStorage.setItem("userId", userId);
   }
 
@@ -188,9 +188,10 @@ export default function ChatRoom() {
 
     const onUserJoined = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
     const onUserLeft = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
-    const onRoomData = ({ users, counts }) => {
-      setOnlineUsers(users);
-      setCounts(counts);
+    const onRoomData = (data) => {
+      setOnlineUsers(data.users || []);
+      setCounts(data.counts || { online: 0, idle: 0, offline: 0, total: 0 });
+      if (data.creator) setRoomCreator(data.creator);
     };
 
     const onUserTyping = ({ username: typingUsername }) => {

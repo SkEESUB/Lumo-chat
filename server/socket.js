@@ -27,7 +27,7 @@ export function initializeSocket(io) {
     rooms.forEach((room, roomId) => {
       let changed = false;
       room.users.forEach((user, userId) => {
-        if (user.status === "online" && now - user.lastSeen > 60000) {
+        if (now - user.lastSeen > 60000) {
           user.status = "idle";
           changed = true;
         }
@@ -75,13 +75,15 @@ export function initializeSocket(io) {
         }
 
         const room = rooms.get(roomId);
-        
-        if (room.creator && room.creator.userId === userId && (!room.creator.name || room.creator.name === "Unknown")) {
-          room.creator.name = name;
+
+        // ✅ ALWAYS ensure creator exists and is valid
+        if (!room.creator || !room.creator.name || room.creator.name === "Unknown") {
+          room.creator = { userId, name };
         }
 
+
         let isNewJoin = false;
-        
+
         if (!room.users.has(userId)) {
           isNewJoin = true;
         }
@@ -103,7 +105,7 @@ export function initializeSocket(io) {
         socket.userId = userId;
 
         socket.emit("room_info", {
-          creatorName: room.creator?.name || "Unknown"
+          creatorName: room.creator?.name || name
         });
 
         const oldMessages = messages[roomId] || [];
@@ -113,7 +115,7 @@ export function initializeSocket(io) {
           userId,
           username: name
         });
-        
+
         if (isNewJoin) {
           io.to(roomId).emit("user_joined", {
             id: generateId(),
@@ -156,7 +158,7 @@ export function initializeSocket(io) {
 
         const messageData = {
           id: generateId(),
-          senderId: socket.userId, 
+          senderId: socket.userId,
           senderName: socket.username,
           roomId: room,
           text: data.text || '',
@@ -268,7 +270,7 @@ export function initializeSocket(io) {
     socket.on("leave_room", (data) => {
       const roomId = data?.roomId || socket.currentRoom;
       const userId = data?.userId || socket.userId;
-      
+
       if (!roomId || !userId) return;
 
       if (rooms.has(roomId)) {

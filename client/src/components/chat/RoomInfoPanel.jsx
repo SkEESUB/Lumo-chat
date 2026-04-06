@@ -14,7 +14,7 @@ export default function RoomInfoPanel({
   onlineUsers,
   typingUsers,
   recentActiveUsers,
-  socketId,
+  userId,
   onLeave,
   isConnected,
   roomCreator
@@ -77,9 +77,13 @@ export default function RoomInfoPanel({
           <ul className="space-y-3 relative z-10">
             <AnimatePresence>
               {onlineUsers.map((u) => {
-                const isTyping = typingUsers.has(u.username);
-                const isActive = isTyping || recentActiveUsers.has(u.username);
-                const userHsl = stringToHSL(u.username);
+                const uName = u.username || u.name || 'Unknown';
+                const isTyping = typingUsers.has(uName);
+                const isActive = isTyping || recentActiveUsers.has(uName);
+                const userHsl = stringToHSL(uName);
+
+                // Use userId (persistent) instead of socketId for "(you)" detection
+                const isCurrentUser = u.userId === userId || u.id === userId;
 
                 return (
                   <motion.li
@@ -87,7 +91,7 @@ export default function RoomInfoPanel({
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: 20, scale: 0.8, filter: "blur(4px)" }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                    key={u.id}
+                    key={u.userId || u.id}
                     className={`flex items-center gap-3 text-sm text-gray-200 bg-white/5 p-2 rounded-xl border border-white/5 shadow-sm hover:bg-white/10 transition-colors group relative ${isActive ? 'bg-white/10' : ''}`}
                   >
                     <div className="relative">
@@ -102,7 +106,7 @@ export default function RoomInfoPanel({
                         className="w-9 h-9 rounded-full flex items-center justify-center uppercase font-bold text-xs shadow-inner border relative overflow-hidden"
                       >
                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
-                        <span className="relative z-10">{u.username.substring(0, 2)}</span>
+                        <span className="relative z-10">{uName.substring(0, 2)}</span>
                       </motion.div>
 
                       <div className="absolute bottom-[-1px] right-[-1px]">
@@ -110,7 +114,7 @@ export default function RoomInfoPanel({
                           {u.status === 'online' && (
                             <>
                               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 ${isActive ? 'scale-150 duration-700' : ''}`}></span>
-                              <span className={`relative inline-flex rounded-full h-3 w-3 bg-green-500 border-[2px] border-[#1e293b] shadow-[0_0_6px_rgba(34,197,94,0.8)]`}></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500 border-[2px] border-[#1e293b] shadow-[0_0_6px_rgba(34,197,94,0.8)]"></span>
                             </>
                           )}
                           {u.status === 'idle' && (
@@ -123,8 +127,8 @@ export default function RoomInfoPanel({
                       </div>
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                      <span className={`truncate transition-colors ${u.id === socketId ? 'font-semibold text-white' : 'text-gray-300'} group-hover:text-white ${isActive ? 'drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]' : ''}`}>
-                        {u.username} {u.id === socketId && <span className="text-xs text-brand-400 opacity-80">(you)</span>}
+                      <span className={`truncate transition-colors ${isCurrentUser ? 'font-semibold text-white' : 'text-gray-300'} group-hover:text-white ${isActive ? 'drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]' : ''}`}>
+                        {uName} {isCurrentUser && <span className="text-xs text-brand-400 opacity-80">(you)</span>}
                       </span>
                       {isTyping ? (
                         <span className="text-[10px] text-brand-300 animate-pulse mt-0.5">is typing...</span>
@@ -132,7 +136,7 @@ export default function RoomInfoPanel({
                         <span className="text-[10px] text-gray-500 mt-0.5">
                           {u.status === 'online' ? 'Online'
                             : u.status === 'idle' ? 'Idle'
-                              : `Last seen ${new Date(u.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                              : `Last seen ${u.lastSeen ? new Date(u.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'recently'}`}
                         </span>
                       )}
                     </div>
@@ -152,7 +156,7 @@ export default function RoomInfoPanel({
         </button>
 
         <div className="creator flex flex-col items-center gap-1 mt-4">
-          <span className="text-gray-400 text-xs">Created by {roomCreator?.name || 'Unknown'}</span>
+          <span className="text-gray-400 text-xs">Created by {roomCreator || 'the host'}</span>
           <span className="text-brand-300 text-xs font-semibold">Designed by Eesub</span>
         </div>
       </div>

@@ -34,7 +34,15 @@ export default function Home() {
     setError('');
 
     try {
-      const API_URL = "https://lumo-backend-eknu.onrender.com";
+      const API_URL = import.meta.env.VITE_BACKEND_URL || "https://lumo-backend-9lq7.onrender.com";
+
+      // Ensure userId exists before navigating
+      let uid = localStorage.getItem("userId");
+      if (!uid) {
+        uid = crypto.randomUUID();
+        localStorage.setItem("userId", uid);
+      }
+      localStorage.setItem("userName", formData.username);
 
       const res = await fetch(`${API_URL}/api/rooms/create`, {
         method: "POST",
@@ -46,15 +54,10 @@ export default function Home() {
         }),
       });
 
-      console.log("📡 API status:", res.status);
-
       if (!res.ok) throw new Error('Failed to create room');
 
       const data = await res.json();
 
-      console.log("✅ Room created:", data);
-
-      // 👉 Navigate FIRST (important)
       navigate(`/room/${data.roomId}`, {
         state: { username: formData.username, code: data.code }
       });
@@ -69,8 +72,6 @@ export default function Home() {
 
   // 🔥 JOIN ROOM (FIXED)
   const handleJoinRoom = () => {
-    console.log("🔥 Join button clicked");
-
     if (!formData.username.trim() || !formData.roomId.trim()) {
       setError('Please fill in all fields');
       return;
@@ -79,9 +80,16 @@ export default function Home() {
     setLoading(true);
     setError('');
 
+    // Ensure userId exists before navigating
+    let uid = localStorage.getItem("userId");
+    if (!uid) {
+      uid = crypto.randomUUID();
+      localStorage.setItem("userId", uid);
+    }
+    localStorage.setItem("userName", formData.username);
+
     const roomId = formData.roomId.toUpperCase();
 
-    // 👉 Navigate FIRST
     navigate(`/room/${roomId}`, {
       state: { username: formData.username }
     });

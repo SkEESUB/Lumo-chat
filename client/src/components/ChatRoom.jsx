@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { socket, connectSocket, disconnectSocket } from '../services/socket';
 
@@ -17,34 +17,21 @@ export default function ChatRoom() {
 
   const state = location.state || {};
 
-  // ========================================
-  // 1. PERSISTENT USER IDENTITY (localStorage)
-  // ========================================
-  const userIdRef = useRef(null);
-  const userNameRef = useRef(null);
-
-  if (!userIdRef.current) {
-    let storedUserId = localStorage.getItem("userId");
-    if (!storedUserId) {
-      storedUserId = crypto.randomUUID();
-      localStorage.setItem("userId", storedUserId);
-    }
-    userIdRef.current = storedUserId;
+  let userId = localStorage.getItem("userId");
+  if (!userId) {
+    userId = crypto.randomUUID();
+    localStorage.setItem("userId", userId);
   }
 
-  if (!userNameRef.current) {
-    // Priority: route state > localStorage > prompt
-    let name = state.username || localStorage.getItem("userName");
-    if (!name) {
-      name = prompt("Enter your name") || "Guest";
-    }
-    localStorage.setItem("userName", name);
-    userNameRef.current = name;
+  let userName = state.username || localStorage.getItem("userName");
+
+  if (!userName) {
+    userName = prompt("Enter your name") || "Guest";
   }
 
-  const userId = userIdRef.current;
-  const username = userNameRef.current;
+  localStorage.setItem("userName", userName);
 
+  const [username] = useState(userName);
   const [code] = useState(state.code || '');
 
   const [messages, setMessages] = useState([]);
@@ -72,7 +59,7 @@ export default function ChatRoom() {
     }
   }, []);
 
-  // Handle Visibility Change (idle/active)
+  // Handle Visibility Change
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!socket.connected) return;
@@ -88,9 +75,9 @@ export default function ChatRoom() {
     };
   }, []);
 
-  // Send activity ping every 15s (keeps user "online" on server)
+  // Send activity ping
   useEffect(() => {
-    if (!userId) return;
+    if (!socket || !userId) return;
     const activityInterval = setInterval(() => {
       if (socket.connected && !document.hidden) {
         socket.emit("user_activity", { userId });
@@ -99,9 +86,7 @@ export default function ChatRoom() {
     return () => clearInterval(activityInterval);
   }, [userId]);
 
-  // ========================================
-  // MAIN SOCKET LIFECYCLE — connect, join, listeners
-  // ========================================
+  // Initial connection and Room Join
   useEffect(() => {
     if (!username) {
       navigate('/');
@@ -112,9 +97,17 @@ export default function ChatRoom() {
 
     const tryJoin = () => {
       if (hasJoinedRef.current) return;
-      if (!roomId || !userId || !username) return;
+
+      if (!roomId || !userId || !username) {
+        console.log("❌ Missing join data", { roomId, userId, name: username });
+        return;
+      }
 
       localStorage.setItem("roomId", roomId);
+
+      console.log("JOIN DATA:", { roomId, userId, name: username });
+      console.log("✅ Joining room:", { roomId, userId, name: username });
+
       hasJoinedRef.current = true;
 
       socket.emit('join_room', { roomId, userId, name: username }, (res) => {
@@ -122,7 +115,7 @@ export default function ChatRoom() {
           socket.currentRoom = roomId;
           setIsConnected(true);
         } else if (res) {
-          setError(res.message || 'Failed to join room');
+          setError(res.message);
           setTimeout(() => navigate('/'), 3000);
         }
       });
@@ -135,57 +128,50 @@ export default function ChatRoom() {
 
     const onConnect = () => {
       setIsConnected(true);
-      hasJoinedRef.current = false; // Allow rejoin on reconnect
+      hasJoinedRef.current = false; // Reset to allow rejoin
       tryJoin();
     };
 
-    const onDisconnect = () => {
+    socket.on('connect', onConnect);
+    socket.on('disconnect', () => {
       setIsConnected(false);
       hasJoinedRef.current = false;
-    };
+    });
 
-    // ========================
-    // MESSAGE HANDLERS
-    // ========================
     const onLoadMessages = (msgs) => {
-      if (!Array.isArray(msgs)) return;
-      setMessages(prev => {
-        const currentIds = new Set(prev.map(m => m.id));
-        const newMsgs = msgs.filter(m => m && m.id && !currentIds.has(m.id));
-        if (newMsgs.length === 0) return prev;
-        return [...prev, ...newMsgs].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-      });
+      if (msgs) {
+        setMessages(prev => {
+          const currentIds = new Set(prev.map(m => m.id));
+          const newMsgs = msgs.filter(m => !currentIds.has(m.id));
+          if (newMsgs.length === 0) return prev;
+          return [...prev, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp);
+        });
+      }
     };
 
     const onReceiveMessage = (data) => {
-      if (!data || !data.id) return;
+      if (!data) return;
 
-      // Handle reactions encoded as REACT:emoji:targetMsgId
       if (data.text && data.text.startsWith('REACT:')) {
-        const parts = data.text.split(':');
-        if (parts.length >= 3) {
-          const emoji = parts[1];
-          const targetMsgId = parts[2];
-          setMessages(prev => prev.map(m => m.id === targetMsgId ? {
-            ...m,
-            reactions: [...(m.reactions || []), { emoji, senderId: data.senderId, senderName: data.senderName }]
-          } : m));
-        }
+        const [, emoji, targetMsgId] = data.text.split(':');
+        setMessages((prev) => prev.map(m => m.id === targetMsgId ? {
+          ...m,
+          reactions: [...(m.reactions || []), { emoji, senderId: data.senderId, senderName: data.senderName }]
+        } : m));
         return;
       }
-
-      // Add message only if not already present (prevent duplicates)
-      setMessages(prev => {
+      setMessages((prev) => {
         if (prev.some(m => m.id === data.id)) return prev;
         return [...prev, data];
       });
 
-      // Browser notification for messages from others when tab is hidden
       if (document.hidden && "Notification" in window && Notification.permission === "granted" && data.senderId !== userId && data.text) {
-        new Notification("New Message", { body: data.text });
+        new Notification("New Message", {
+          body: data.text
+        });
       }
 
-      // Trigger delivered status for messages from others
+      // Trigger delivered status
       if (data.senderId !== userId && data.roomId) {
         socket.emit("message_delivered", {
           messageId: data.id,
@@ -193,15 +179,14 @@ export default function ChatRoom() {
         });
       }
 
-      // Track recently active users for the glow effect
       if (data.senderName) {
-        setRecentActiveUsers(prev => {
+        setRecentActiveUsers((prev) => {
           const next = new Set(prev);
           next.add(data.senderName);
           return next;
         });
         setTimeout(() => {
-          setRecentActiveUsers(prev => {
+          setRecentActiveUsers((prev) => {
             const next = new Set(prev);
             next.delete(data.senderName);
             return next;
@@ -210,33 +195,22 @@ export default function ChatRoom() {
       }
     };
 
-    const onUserJoined = (data) => {
-      if (!data) return;
-      setMessages(prev => [...prev, { ...data, type: 'system' }]);
-    };
-
-    const onUserLeft = (data) => {
-      if (!data) return;
-      setMessages(prev => [...prev, { ...data, type: 'system' }]);
-    };
+    const onUserJoined = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
+    const onUserLeft = (data) => setMessages((prev) => [...prev, { ...data, type: 'system' }]);
 
     const onRoomData = (data) => {
       if (!data) return;
       setOnlineUsers(data.users || []);
       setCounts(data.counts || { online: 0, idle: 0, offline: 0, total: 0 });
-      if (data.creator && data.creator.name) {
-        setRoomCreator(data.creator.name);
-      }
+      if (data.creator && data.creator.name) setRoomCreator(data.creator.name);
     };
 
     const onUserTyping = ({ username: typingUsername }) => {
-      if (!typingUsername) return;
-      setTypingUsers(prev => new Set(prev).add(typingUsername));
+      setTypingUsers((prev) => new Set(prev).add(typingUsername));
     };
 
     const onUserStopTyping = ({ username: typingUsername }) => {
-      if (!typingUsername) return;
-      setTypingUsers(prev => {
+      setTypingUsers((prev) => {
         const next = new Set(prev);
         next.delete(typingUsername);
         return next;
@@ -244,27 +218,21 @@ export default function ChatRoom() {
     };
 
     const onUpdateStatus = ({ messageId, status }) => {
-      if (!messageId || !status) return;
-      setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, status } : msg));
+      setMessages((prev) => prev.map(msg => msg.id === messageId ? { ...msg, status } : msg));
     };
 
-    const onUserOnline = ({ userId: uid, username: uname }) => {
-      // Logged for debugging
+    const onUserOnline = ({ userId, userName }) => {
+      console.log(userName + " is online");
     };
 
-    const onUserOffline = ({ userId: uid }) => {
-      // Logged for debugging
+    const onUserOffline = ({ userId }) => {
+      console.log(userId + " is offline");
     };
 
     const onRoomInfo = (data) => {
-      if (data && data.creatorName) {
-        setRoomCreator(data.creatorName);
-      }
+      if (data) setRoomCreator(data.creatorName);
     };
 
-    // Register all listeners
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
     socket.on('load_messages', onLoadMessages);
     socket.on('receive_message', onReceiveMessage);
     socket.on('user_joined', onUserJoined);
@@ -278,8 +246,8 @@ export default function ChatRoom() {
     socket.on('user_offline', onUserOffline);
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
+      socket.off('connect');
+      socket.off('disconnect');
       socket.off('load_messages', onLoadMessages);
       socket.off('receive_message', onReceiveMessage);
       socket.off('user_joined', onUserJoined);
@@ -294,10 +262,10 @@ export default function ChatRoom() {
     };
   }, [roomId, code, username, navigate, userId]);
 
-  // Handle "message seen" logic
+  // Handle "message seen" logic dynamically based on messages rendered
   useEffect(() => {
     messages.forEach((msg) => {
-      if (msg && msg.senderId !== userId && msg.status !== "seen" && msg.type === 'chat') {
+      if (msg.senderId !== userId && msg.status !== "seen" && msg.type === 'chat') {
         socket.emit("message_seen", {
           messageId: msg.id,
           roomId: msg.roomId || roomId
@@ -354,7 +322,7 @@ export default function ChatRoom() {
         { method: "POST", body: formData }
       );
       if (!response.ok) {
-        console.error("CLOUDINARY ERROR:", await response.text());
+        console.error("🚨 CLOUDINARY ERROR:", await response.text());
         throw new Error("Upload failed");
       }
       const data = await response.json();
@@ -381,7 +349,7 @@ export default function ChatRoom() {
     if (fileURL) {
       socket.emit("send_message", {
         roomId,
-        text: "",
+        text: "", // Ensure no raw text string is displayed for files
         type: "file",
         fileUrl: fileURL,
         fileType: file.type.startsWith("image/") ? "image" : "file"
@@ -417,6 +385,7 @@ export default function ChatRoom() {
 
       <MessagesList
         messages={messages}
+        socketId={socket.id}
         onReact={reactToMessage}
         typingUsers={typingUsers}
         username={username}
@@ -445,7 +414,7 @@ export default function ChatRoom() {
         onlineUsers={onlineUsers}
         typingUsers={typingUsers}
         recentActiveUsers={recentActiveUsers}
-        userId={userId}
+        socketId={socket.id}
         onLeave={leaveRoom}
         isConnected={isConnected}
         roomCreator={roomCreator}

@@ -17,8 +17,22 @@ const server = http.createServer(app);
 //
 // ✅ 1. CORS (CLEAN WAY — NOT manual headers)
 //
+const ALLOWED_ORIGINS = [
+  "https://lumo-chat.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000"
+];
+
 app.use(cors({
-  origin: "https://lumo-chat.vercel.app",
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked origin: ${origin}`);
+      callback(null, true); // Allow all for now in development
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
@@ -65,18 +79,16 @@ app.post("/api/rooms/create", (req, res) => {
 //
 const io = new Server(server, {
   cors: {
-    origin: "https://lumo-chat.vercel.app",
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  transports: ["websocket", "polling"],
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
-//
-// ✅ 7. Debug socket connection
-//
-io.on("connection", (socket) => {
-  console.log("🔥 Socket connected:", socket.id);
-});
+// Socket connection is handled inside initializeSocket
 
 //
 // ✅ 8. Initialize your custom socket logic

@@ -34,15 +34,9 @@ export default function Home() {
     setError('');
 
     try {
-      const API_URL = import.meta.env.VITE_BACKEND_URL || "https://lumo-backend-9lq7.onrender.com";
+      const API_URL = import.meta.env.VITE_BACKEND_URL || "https://lumo-backend-eknu.onrender.com";
 
-      // Ensure userId exists before navigating
-      let uid = localStorage.getItem("userId");
-      if (!uid) {
-        uid = crypto.randomUUID();
-        localStorage.setItem("userId", uid);
-      }
-      localStorage.setItem("userName", formData.username);
+      console.log("📡 Calling API:", `${API_URL}/api/rooms/create`);
 
       const res = await fetch(`${API_URL}/api/rooms/create`, {
         method: "POST",
@@ -54,24 +48,41 @@ export default function Home() {
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to create room');
+      console.log("📡 API status:", res.status);
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error (${res.status})`);
+      }
 
       const data = await res.json();
 
+      console.log("✅ Room created:", data);
+
+      if (!data.roomId) {
+        throw new Error('Invalid response from server — no room ID');
+      }
+
+      // Navigate to the room
       navigate(`/room/${data.roomId}`, {
         state: { username: formData.username, code: data.code }
       });
 
-
     } catch (err) {
       console.error("❌ ERROR:", err);
-      setError(err.message);
+      if (err.message === 'Failed to fetch') {
+        setError('Cannot reach server. It may be starting up — please try again in 30 seconds.');
+      } else {
+        setError(err.message);
+      }
       setLoading(false);
     }
   };
 
   // 🔥 JOIN ROOM (FIXED)
   const handleJoinRoom = () => {
+    console.log("🔥 Join button clicked");
+
     if (!formData.username.trim() || !formData.roomId.trim()) {
       setError('Please fill in all fields');
       return;
@@ -80,16 +91,9 @@ export default function Home() {
     setLoading(true);
     setError('');
 
-    // Ensure userId exists before navigating
-    let uid = localStorage.getItem("userId");
-    if (!uid) {
-      uid = crypto.randomUUID();
-      localStorage.setItem("userId", uid);
-    }
-    localStorage.setItem("userName", formData.username);
-
     const roomId = formData.roomId.toUpperCase();
 
+    // 👉 Navigate FIRST
     navigate(`/room/${roomId}`, {
       state: { username: formData.username }
     });
@@ -116,7 +120,7 @@ export default function Home() {
 
         {/* Lumo Logo */}
         <Logo className="w-32 md:w-40 lg:w-48 mb-6" />
-        
+
         <h1 className="sr-only">
           Lumo
         </h1>

@@ -4,6 +4,71 @@ import { MessageSquare } from 'lucide-react';
 import { stringToHSL } from '../../utils/helpers';
 import MessageBubble from './MessageBubble';
 
+const MessageStatus = () => {
+  const [status, setStatus] = useState('sent');
+
+  // Simulated timed transitions to mimic network lifecycle
+  useEffect(() => {
+    const deliveredTimer = setTimeout(() => setStatus('delivered'), 800);
+    const seenTimer = setTimeout(() => setStatus('seen'), 2000);
+    return () => {
+      clearTimeout(deliveredTimer);
+      clearTimeout(seenTimer);
+    };
+  }, []);
+
+  const isSeen = status === 'seen';
+  const isDelivered = status === 'delivered' || isSeen;
+
+  const dotVariant = {
+    hidden: { opacity: 0, scale: 0 },
+    sent: {
+      opacity: 0.5,
+      scale: 1,
+      backgroundColor: 'rgba(255, 255, 255, 0.6)',
+      boxShadow: '0 0 0px rgba(0,0,0,0)',
+      transition: { duration: 0.2 }
+    },
+    seen: {
+      opacity: 1,
+      scale: [1, 1.25, 1],
+      backgroundColor: 'rgba(34, 197, 94, 1)',
+      boxShadow: '0 0 8px rgba(34, 197, 94, 0.9)',
+      transition: {
+        duration: 0.3,
+        scale: {
+          duration: 1.5,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }
+      }
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-[3px] justify-center ml-0.5">
+      <motion.div
+        variants={dotVariant}
+        initial="hidden"
+        animate={isSeen ? "seen" : "sent"}
+        className="w-[3.5px] h-[3.5px] rounded-full"
+      />
+      <AnimatePresence>
+        {isDelivered && (
+          <motion.div
+            key="dot2"
+            variants={dotVariant}
+            initial="hidden"
+            animate={isSeen ? "seen" : "sent"}
+            exit="hidden"
+            className="w-[3.5px] h-[3.5px] rounded-full"
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function MessagesList({
   messages,
   userId,
@@ -56,15 +121,12 @@ export default function MessagesList({
     );
   }
 
-  // Deduplicate messages safely
+  // Deduplicate messages safely 
   const uniqueMessagesMap = new Map();
   messages.forEach(msg => {
     if (msg && msg.id) uniqueMessagesMap.set(msg.id, msg);
   });
   const filteredMessages = Array.from(uniqueMessagesMap.values());
-
-  // Get typing users that are NOT the current user
-  const otherTypingUsers = Array.from(typingUsers || []).filter(u => u !== username);
 
   return (
     <>
@@ -72,7 +134,6 @@ export default function MessagesList({
         <div className="max-w-2xl mx-auto flex flex-col relative pb-4 px-2">
           <AnimatePresence initial={false}>
             {filteredMessages.map((msg, idx) => {
-              // System messages (join/leave)
               if (msg.type === 'system') {
                 return (
                   <motion.div
@@ -88,15 +149,11 @@ export default function MessagesList({
                 );
               }
 
-              // ========================================
-              // MESSAGE ALIGNMENT: userId comparison
-              // My messages → right, Others → left
-              // ========================================
               const isMe = msg.senderId === userId;
               const senderName = msg.senderName || 'Unknown';
               const userHsl = stringToHSL(senderName);
 
-              // Clustering logic (avatar once per cluster)
+              // Clustering logic for WhatsApp-like UI (Avatar once, spacing adjusted)
               const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null;
               const isSameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId && prevMsg.type !== 'system';
               const showAvatarAndName = !isMe && !isSameSenderAsPrev;
@@ -131,7 +188,7 @@ export default function MessagesList({
           </AnimatePresence>
 
           <AnimatePresence>
-            {otherTypingUsers.length > 0 && (
+            {typingUsers.size > 0 && Array.from(typingUsers).filter(u => u !== username).length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -139,7 +196,7 @@ export default function MessagesList({
                 className="flex items-end gap-2 mt-auto"
               >
                 <div className="w-8 h-8 rounded-full bg-slate-800/80 border border-white/5 flex items-center justify-center text-[10px] font-bold text-gray-500 mb-1 shrink-0">
-                  {otherTypingUsers[0] ? otherTypingUsers[0].substring(0, 2).toUpperCase() : '..'}
+                  {Array.from(typingUsers).filter(u => u !== username)[0].substring(0, 2).toUpperCase()}
                 </div>
                 <div className="bg-slate-800/80 backdrop-blur-md border border-white/10 text-gray-300 rounded-tr-2xl rounded-br-2xl rounded-tl-xl rounded-bl-sm px-4 py-3 shadow-sm w-fit flex items-center gap-2 mb-1">
                   <div className="flex space-x-1.5 items-center h-4">
@@ -148,7 +205,7 @@ export default function MessagesList({
                     <motion.div animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut", delay: 0.3 }} className="w-1.5 h-1.5 bg-brand-400/80 rounded-full"></motion.div>
                   </div>
                   <span className="text-xs text-brand-300/80 font-medium ml-1">
-                    {otherTypingUsers.join(', ')} is typing
+                    {Array.from(typingUsers).filter(u => u !== username).join(', ')} is typing
                   </span>
                 </div>
               </motion.div>

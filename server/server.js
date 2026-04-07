@@ -52,26 +52,10 @@ const apiLimiter = rateLimit({
 app.use("/api", apiLimiter);
 
 //
-// ✅ 4. Test route
+// ✅ 5. Health check route
 //
 app.get("/", (req, res) => {
   res.send("🔥 Backend is working");
-});
-
-//
-// ✅ 5. API route
-//
-app.post("/api/rooms/create", (req, res) => {
-  try {
-    const room = roomManager.createRoom();
-
-    console.log("✅ Room created:", room);
-
-    res.status(201).json(room);
-  } catch (err) {
-    console.error("❌ Room creation error:", err);
-    res.status(500).json({ error: "Failed to create room" });
-  }
 });
 
 //

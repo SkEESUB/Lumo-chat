@@ -8,6 +8,31 @@ export function initializeSocket(io) {
     console.log(`🔌 User connected: ${socket.id}`);
 
     // ========================
+    // CREATE ROOM
+    // ========================
+    socket.on('create_room', (payload, callback) => {
+      try {
+        const { username } = payload || {};
+        console.log('📥 create_room from:', username || 'unknown');
+
+        const room = roomManager.createRoom();
+        console.log('✅ Room created via socket:', room);
+
+        safeCallback(callback, {
+          success: true,
+          roomId: room.roomId,
+          code: room.code,
+        });
+      } catch (err) {
+        console.error('❌ create_room error:', err);
+        safeCallback(callback, {
+          success: false,
+          message: 'Server error while creating room',
+        });
+      }
+    });
+
+    // ========================
     // JOIN ROOM
     // ========================
     socket.on('join_room', (payload, callback) => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Users, Loader2, Sparkles } from 'lucide-react';
 import Logo from './ui/Logo';
+import { socket, connectSocket } from '../services/socket';
 
 export default function Home() {
   const [isJoinMode, setIsJoinMode] = useState(false);
@@ -21,8 +22,8 @@ export default function Home() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🔥 CREATE ROOM (FIXED)
-  const handleCreateRoom = async () => {
+  // 🔥 CREATE ROOM via Socket.IO
+  const handleCreateRoom = () => {
     console.log("🔥 Create button clicked");
 
     if (!formData.username.trim()) {
@@ -33,49 +34,49 @@ export default function Home() {
     setLoading(true);
     setError('');
 
-    try {
-      const API_URL = import.meta.env.VITE_BACKEND_URL || "https://lumo-backend-eknu.onrender.com";
+    // Ensure socket is connected before emitting
+    if (!socket.connected) {
+      console.log("🔌 Socket not connected, connecting now...");
+      connectSocket();
+    }
 
-      console.log("📡 Calling API:", `${API_URL}/api/rooms/create`);
+    const doCreate = () => {
+      console.log("📡 Emitting create_room via Socket.IO");
+      console.log("🔌 Socket connected:", socket.connected, "id:", socket.id);
 
-      const res = await fetch(`${API_URL}/api/rooms/create`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: formData.username || "guest"
-        }),
+      socket.emit('create_room', { username: formData.username }, (res) => {
+        console.log("📡 create_room response:", res);
+
+        if (res && res.success) {
+          console.log("✅ Room created:", res);
+          navigate(`/room/${res.roomId}`, {
+            state: { username: formData.username, code: res.code }
+          });
+        } else {
+          console.error("❌ create_room failed:", res);
+          setError(res?.message || 'Failed to create room. Please try again.');
+          setLoading(false);
+        }
       });
+    };
 
-      console.log("📡 API status:", res.status);
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error (${res.status})`);
-      }
-
-      const data = await res.json();
-
-      console.log("✅ Room created:", data);
-
-      if (!data.roomId) {
-        throw new Error('Invalid response from server — no room ID');
-      }
-
-      // Navigate to the room
-      navigate(`/room/${data.roomId}`, {
-        state: { username: formData.username, code: data.code }
-      });
-
-    } catch (err) {
-      console.error("❌ ERROR:", err);
-      if (err.message === 'Failed to fetch') {
+    // If already connected, create immediately
+    if (socket.connected) {
+      doCreate();
+    } else {
+      // Wait for connection, then create
+      const timeout = setTimeout(() => {
+        socket.off('connect', onConnect);
         setError('Cannot reach server. It may be starting up — please try again in 30 seconds.');
-      } else {
-        setError(err.message);
-      }
-      setLoading(false);
+        setLoading(false);
+      }, 15000);
+
+      const onConnect = () => {
+        clearTimeout(timeout);
+        doCreate();
+      };
+
+      socket.once('connect', onConnect);
     }
   };
 

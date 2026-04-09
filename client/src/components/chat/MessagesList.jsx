@@ -73,29 +73,47 @@ export default function MessagesList({
   messages,
   userId,
   onReact,
+  onReply,
   typingUsers,
   username
 }) {
   const chatRef = useRef(null);
-  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [activeRipple, setActiveRipple] = useState(null);
+  
+  const prevMessagesLengthRef = useRef(0);
 
   const handleScroll = () => {
     const el = chatRef.current;
     if (!el) return;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
-    setShowScrollBtn(!nearBottom);
+    
+    if (nearBottom && unreadCount > 0) {
+      setUnreadCount(0);
+    }
   };
 
   useEffect(() => {
     const el = chatRef.current;
     if (!el) return;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    
+    const isNewMessage = messages && messages.length > prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = messages ? messages.length : 0;
 
     if (nearBottom) {
       el.scrollTop = el.scrollHeight;
+      if (unreadCount > 0) setUnreadCount(0);
+    } else if (isNewMessage) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.senderId !== userId && lastMsg.type !== 'system') {
+        setUnreadCount(prev => prev + 1);
+      } else if (lastMsg && lastMsg.senderId === userId) {
+        // Auto scroll for own message
+        el.scrollTop = el.scrollHeight;
+      }
     }
-  }, [messages, typingUsers]);
+  }, [messages, typingUsers, userId, unreadCount]);
 
   const triggerRipple = (id) => {
     setActiveRipple(id);
@@ -178,6 +196,7 @@ export default function MessagesList({
                       onRipple={triggerRipple}
                       activeRipple={activeRipple}
                       onReact={onReact}
+                      onReply={onReply}
                       showAvatarAndName={showAvatarAndName}
                       senderName={senderName}
                     />
@@ -217,7 +236,7 @@ export default function MessagesList({
       </main>
 
       <AnimatePresence>
-        {showScrollBtn && (
+        {unreadCount > 0 && (
           <motion.button
             initial={{ opacity: 0, y: 20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
@@ -225,11 +244,12 @@ export default function MessagesList({
             onClick={() => {
               if (chatRef.current) {
                 chatRef.current.scrollTop = chatRef.current.scrollHeight;
+                setUnreadCount(0);
               }
             }}
-            className="fixed bottom-20 left-1/2 z-50 bg-[rgba(15,23,42,0.8)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] text-white shadow-[0_4px_20px_rgba(0,0,0,0.5)] px-4 py-2 rounded-full text-xs font-semibold tracking-wide hover:bg-brand-500 transition-colors"
+            className="fixed bottom-20 left-1/2 z-50 bg-[rgba(15,23,42,0.9)] backdrop-blur-md border border-[rgba(255,255,255,0.2)] text-white shadow-[0_4px_20px_rgba(0,0,0,0.5)] px-4 py-2 rounded-full text-xs font-semibold tracking-wide hover:bg-brand-500 transition-colors flex items-center gap-2"
           >
-            ↓ New Messages
+            ↓ {unreadCount} New Message{unreadCount > 1 ? 's' : ''}
           </motion.button>
         )}
       </AnimatePresence>

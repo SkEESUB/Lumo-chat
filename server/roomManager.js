@@ -7,6 +7,7 @@ class Room {
     this.roomId = roomId;
     this.code = code;
     this.users = new Map(); // id -> user object
+    this.messages = []; // store messages
     this.maxUsers = 3;
     this.createdAt = new Date();
   }
@@ -64,13 +65,7 @@ export const roomManager = {
 
     const remaining = room.removeUser(socketId);
 
-    // Smart Delete logic: if 0 users, delete room
-    if (remaining === 0) {
-      rooms.delete(roomId);
-      console.log(`[Smart Delete] Room ${roomId} has 0 users and was deleted from memory.`);
-      return { success: true, roomDeleted: true };
-    }
-
+    // Smart Delete removed to ensure room stability
     return { success: true, roomDeleted: false };
   },
 
@@ -83,5 +78,20 @@ export const roomManager = {
   
   roomExists: (roomId) => {
     return rooms.has(roomId);
+  },
+
+  addMessage: (roomId, message) => {
+    const room = rooms.get(roomId);
+    if (room) {
+      room.messages.push(message);
+      return true;
+    }
+    return false;
+  },
+
+  getRoomMessages: (roomId) => {
+    const room = rooms.get(roomId);
+    if (!room) return [];
+    return room.messages;
   }
 };

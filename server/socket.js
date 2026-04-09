@@ -1,7 +1,11 @@
 import { roomManager } from './roomManager.js';
+import { sendPushNotification } from './notifications.js';
 
 // Track users by socketId -> { socketId, userId, userName, roomId, status }
 const usersBySocket = new Map();
+
+// Track FCM tokens by roomId -> Map<socketId, { token, username }>
+const fcmTokensByRoom = new Map();
 
 export function initializeSocket(io) {
   io.on('connection', (socket) => {
@@ -87,6 +91,10 @@ export function initializeSocket(io) {
         // Send updated room data
         broadcastRoomData(io, roomId);
 
+        // Load complete message history for joining user
+        const history = roomManager.getRoomMessages(roomId);
+        socket.emit('load_messages', history);
+
         safeCallback(callback, {
           success: true,
           message: 'Joined successfully',
@@ -125,9 +133,13 @@ export function initializeSocket(io) {
           type: data.type || 'chat',
           fileUrl: data.fileUrl || null,
           fileType: data.fileType || null,
+          replyTo: data.replyTo || null,
           status: 'sent',
           timestamp: Date.now(),
         };
+
+        // Save message in memory history
+        roomManager.addMessage(room, messageData);
 
         io.to(room).emit('receive_message', messageData);
 
@@ -212,9 +224,66 @@ export function initializeSocket(io) {
     });
 
     // ========================
+    // PUSH NOTIFICATION: Register FCM Token
+    // ========================
+    socket.on('register_fcm_token', ({ token }) => {
+      const room = socket.currentRoom;
+      if (!room || !token) return;
+
+      if (!fcmTokensByRoom.has(room)) {
+        fcmTokensByRoom.set(room, new Map());
+      }
+      fcmTokensByRoom.get(room).set(socket.id, {
+        token,
+        username: socket.username,
+      });
+      console.log(`🔔 FCM token registered for ${socket.username} in room ${room}`);
+    });
+
+    // ========================
+    // PUSH NOTIFICATION: Notify Room
+    // ========================
+    socket.on('notify_room', (payload, callback) => {
+      const room = socket.currentRoom;
+      if (!room) {
+        return safeCallback(callback, { success: false, message: 'Not in a room' });
+      }
+
+      const senderName = socket.username || 'Someone';
+      const title = payload?.title || `${senderName} is online`;
+      const body = payload?.body || 'Tap to join chat';
+      const link = payload?.link || `https://lumo-chat.vercel.app/room/${room}`;
+
+      const roomTokens = fcmTokensByRoom.get(room);
+      if (!roomTokens || roomTokens.size === 0) {
+        return safeCallback(callback, { success: false, message: 'No users with push enabled' });
+      }
+
+      let sent = 0;
+      const promises = [];
+
+      for (const [sid, { token, username }] of roomTokens) {
+        // Don't notify yourself
+        if (sid === socket.id) continue;
+
+        promises.push(
+          sendPushNotification(token, title, body, link).then((res) => {
+            if (res.success) sent++;
+          })
+        );
+      }
+
+      Promise.all(promises).then(() => {
+        console.log(`🔔 Notified ${sent} user(s) in room ${room}`);
+        safeCallback(callback, { success: true, notified: sent });
+      });
+    });
+
+    // ========================
     // LEAVE ROOM
     // ========================
     socket.on('leave_room', (payload) => {
+      cleanupFcmToken(socket);
       handleLeave(socket, io);
       if (socket.currentRoom) {
         socket.leave(socket.currentRoom);
@@ -227,6 +296,7 @@ export function initializeSocket(io) {
     // ========================
     socket.on('disconnect', () => {
       console.log(`❌ User disconnected: ${socket.id}`);
+      cleanupFcmToken(socket);
       handleLeave(socket, io);
       usersBySocket.delete(socket.id);
     });
@@ -258,6 +328,22 @@ function handleLeave(socket, io) {
   usersBySocket.delete(socket.id);
 
   console.log(`👋 ${socket.username} left room ${room}`);
+}
+
+// ========================
+// CLEANUP FCM TOKEN
+// ========================
+function cleanupFcmToken(socket) {
+  const room = socket.currentRoom;
+  if (!room) return;
+
+  const roomTokens = fcmTokensByRoom.get(room);
+  if (roomTokens) {
+    roomTokens.delete(socket.id);
+    if (roomTokens.size === 0) {
+      fcmTokensByRoom.delete(room);
+    }
+  }
 }
 
 // ========================

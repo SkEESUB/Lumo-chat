@@ -1,8 +1,8 @@
 import React from 'react';
-import { Info, LogOut } from 'lucide-react';
+import { Info, LogOut, Bell } from 'lucide-react';
 import Icon from '../ui/Icon';
 
-export default function Header({ roomId, counts, onInfoClick, onLeaveRoom }) {
+export default function Header({ roomId, counts, onInfoClick, onLeaveRoom, onNotify, notifyStatus }) {
   return (
     <header className="chat-header justify-between text-white">
       <div className="flex items-center gap-3">
@@ -17,6 +17,22 @@ export default function Header({ roomId, counts, onInfoClick, onLeaveRoom }) {
         </div>
       </div>
       <div className="flex items-center gap-2.5">
+        {onNotify && (
+          <button 
+            onClick={onNotify}
+            disabled={notifyStatus === 'sending'}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all text-white active:scale-95 ${
+              notifyStatus === 'sent'
+                ? 'bg-green-500/30 border border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.4)]'
+                : notifyStatus === 'sending'
+                  ? 'bg-yellow-500/20 border border-yellow-500/30 animate-pulse'
+                  : 'bg-white/10 border border-white/10 hover:bg-white/20 shadow-[0_0_10px_rgba(255,255,255,0.1)]'
+            }`}
+            title="Notify others"
+          >
+            <Bell size={18} className={notifyStatus === 'sent' ? 'text-green-400' : ''} />
+          </button>
+        )}
         <button 
           onClick={onInfoClick} 
           className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_20px_rgba(0,234,255,0.6)] hover:scale-105 active:scale-95 transition-all text-white"

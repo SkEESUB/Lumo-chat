@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { socket, connectSocket, disconnectSocket } from '../services/socket';
+import { requestNotificationPermission, onForegroundMessage } from '../services/firebase';
 
 // Components
 import ChatLayout from './chat/ChatLayout';
@@ -36,6 +37,7 @@ export default function ChatRoom() {
 
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [replyTo, setReplyTo] = useState(null);
   const [roomCreator, setRoomCreator] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
@@ -51,6 +53,9 @@ export default function ChatRoom() {
 
   const typingTimeoutRef = useRef(null);
   const hasJoinedRef = useRef(false);
+
+  // Push notification state
+  const [notifyStatus, setNotifyStatus] = useState('idle'); // idle | sending | sent
 
   // Request Notification permission
   useEffect(() => {
@@ -139,12 +144,11 @@ export default function ChatRoom() {
     });
 
     const onLoadMessages = (msgs) => {
-      if (msgs) {
+      if (msgs && Array.isArray(msgs)) {
         setMessages(prev => {
-          const currentIds = new Set(prev.map(m => m.id));
-          const newMsgs = msgs.filter(m => !currentIds.has(m.id));
-          if (newMsgs.length === 0) return prev;
-          return [...prev, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp);
+          const map = new Map(prev.map(m => [m.id, m]));
+          msgs.forEach(m => map.set(m.id, m));
+          return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
         });
       }
     };
@@ -262,6 +266,44 @@ export default function ChatRoom() {
     };
   }, [roomId, code, username, navigate, userId]);
 
+  // Register FCM token after connecting to room
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const registerFcm = async () => {
+      try {
+        const token = await requestNotificationPermission();
+        if (token && socket.connected) {
+          socket.emit('register_fcm_token', { token });
+          console.log('🔔 FCM token sent to server');
+        }
+      } catch (err) {
+        // Silently fail — notifications are optional
+        console.log('🔕 Push notifications not available');
+      }
+    };
+
+    registerFcm();
+  }, [isConnected]);
+
+  // Handle foreground push notifications
+  useEffect(() => {
+    const unsubscribe = onForegroundMessage((payload) => {
+      // Show as in-app notification if the message is from another room or user
+      if (payload?.notification) {
+        const { title, body } = payload.notification;
+        // Use native Notification API for foreground too
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(title || 'Lumo Chat', { body: body || '' });
+        }
+      }
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, []);
+
   // Handle "message seen" logic dynamically based on messages rendered
   useEffect(() => {
     messages.forEach((msg) => {
@@ -287,6 +329,28 @@ export default function ChatRoom() {
     navigate('/');
   };
 
+  // Push notify all others in room
+  const handleNotify = () => {
+    if (!socket.connected) return;
+
+    setNotifyStatus('sending');
+
+    socket.emit('notify_room', {
+      title: `${username} is online`,
+      body: 'Tap to join chat',
+      link: `https://lumo-chat.vercel.app/room/${roomId}`,
+    }, (res) => {
+      if (res?.success) {
+        setNotifyStatus('sent');
+        console.log(`🔔 Notified ${res.notified} user(s)`);
+      } else {
+        setNotifyStatus('idle');
+        console.log('🔕 Notify failed:', res?.message);
+      }
+      setTimeout(() => setNotifyStatus('idle'), 3000);
+    });
+  };
+
   const reactToMessage = (messageId, emoji) => {
     socket.emit('send_message', { text: `REACT:${emoji}:${messageId}` }, () => { });
   };
@@ -300,12 +364,25 @@ export default function ChatRoom() {
     }, 2000);
   };
 
+  const handleReply = (msg) => {
+    setReplyTo({ 
+      messageId: msg.id, 
+      senderName: msg.senderName || 'Unknown', 
+      text: msg.text && msg.text !== msg.fileUrl ? msg.text : 'Attachment' 
+    });
+  };
+
   const sendMessage = (e) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
-    socket.emit('send_message', { text: inputMessage }, () => { });
+    socket.emit('send_message', { 
+      text: inputMessage,
+      replyTo: replyTo 
+    }, () => { });
+    
     setInputMessage('');
+    setReplyTo(null);
     socket.emit('stop_typing', roomId);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
@@ -349,11 +426,14 @@ export default function ChatRoom() {
     if (fileURL) {
       socket.emit("send_message", {
         roomId,
-        text: "", // Ensure no raw text string is displayed for files
+        text: "",
         type: "file",
         fileUrl: fileURL,
-        fileType: file.type.startsWith("image/") ? "image" : "file"
+        fileType: file.type.startsWith("image/") ? "image" : "file",
+        replyTo: replyTo
       }, () => { });
+      
+      setReplyTo(null);
     }
     e.target.value = null;
   };
@@ -381,12 +461,15 @@ export default function ChatRoom() {
         counts={counts}
         onInfoClick={() => setShowInfoPanel(true)}
         onLeaveRoom={leaveRoom}
+        onNotify={handleNotify}
+        notifyStatus={notifyStatus}
       />
 
       <MessagesList
         messages={messages}
         socketId={socket.id}
         onReact={reactToMessage}
+        onReply={handleReply}
         typingUsers={typingUsers}
         username={username}
         userId={userId}
@@ -398,6 +481,8 @@ export default function ChatRoom() {
         onSendMessage={sendMessage}
         onFileChange={handleFileChange}
         isUploading={isUploading}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
       />
 
       <div className="footer-brand">

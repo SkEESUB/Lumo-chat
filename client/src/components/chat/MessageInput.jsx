@@ -1,13 +1,15 @@
 import React, { useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Send, Upload } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Upload, X } from 'lucide-react';
 
 export default function MessageInput({ 
   inputMessage, 
   onInputChange, 
   onSendMessage, 
   onFileChange, 
-  isUploading 
+  isUploading,
+  replyTo,
+  onCancelReply
 }) {
   const fileInputRef = useRef(null);
 
@@ -16,8 +18,35 @@ export default function MessageInput({
   };
 
   return (
-    <footer className="chat-footer">
-      <form onSubmit={onSendMessage} className="input-box">
+    <footer className="chat-footer relative mt-auto pt-2">
+      <AnimatePresence>
+        {replyTo && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: 10, height: 0 }}
+            className="absolute left-2 right-2 bottom-full bg-[rgba(15,23,42,0.85)] backdrop-blur-xl border-t border-x border-[rgba(255,255,255,0.1)] rounded-t-2xl px-4 py-3 flex items-center justify-between z-10 mx-auto max-w-[98%] shadow-[0_-10px_20px_rgba(0,0,0,0.3)] mb-[-5px] pb-5"
+          >
+            <div className="flex flex-col flex-1 truncate pr-4 border-l-[3px] border-cyan-400 pl-3">
+              <span className="text-[11px] font-bold text-cyan-400 mb-0.5">
+                Replying to {replyTo.senderName}
+              </span>
+              <span className="text-[11px] text-gray-300 truncate italic">
+                {replyTo.text}
+              </span>
+            </div>
+            <button 
+              type="button" 
+              onClick={onCancelReply} 
+              className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <form onSubmit={onSendMessage} className={`input-box relative z-20 shadow-xl bg-[rgba(15,23,42,0.9)] backdrop-blur-xl ${replyTo ? '!rounded-t-none border-t border-white/5' : ''}`}>
           <input
           type="file"
           className="hidden"

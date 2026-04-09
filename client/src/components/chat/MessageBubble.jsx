@@ -9,6 +9,7 @@ export default function MessageBubble({
   onRipple, 
   activeRipple, 
   onReact,
+  onReply,
   showAvatarAndName = true,
   senderName = "Unknown"
 }) {
@@ -28,6 +29,14 @@ export default function MessageBubble({
             {emoji}
           </button>
         ))}
+        <div className="w-[1px] h-4 bg-white/20 my-auto mx-1"></div>
+        <button 
+          onClick={() => onReply && onReply(msg)}
+          className="hover:scale-125 md:active:scale-95 transition-transform text-[13px] md:text-sm cursor-pointer p-1 brightness-125"
+          title="Reply"
+        >
+          ↩️
+        </button>
       </div>
 
       {/* Avatar Space (Render if showAvatarAndName, or keep space if same sender to align bubbles) */}
@@ -89,7 +98,19 @@ export default function MessageBubble({
             {/* Inner Top Highlight for glass */}
             <div className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-t-[inherit]"></div>
             
-            <div className="relative z-10 w-full overflow-hidden">
+            <div className="relative z-10 w-full overflow-hidden flex flex-col">
+              {msg.replyTo && (
+                <div 
+                  className={`mb-2 p-2 rounded-lg text-xs border-l-[3px] ${isMe ? 'bg-black/20 border-cyan-400' : 'bg-white/10 border-white/40'} min-w-[120px]`}
+                >
+                  <div className={`font-bold mb-0.5 ${isMe ? 'text-cyan-200' : 'text-gray-200'}`}>
+                    {msg.replyTo.senderName}
+                  </div>
+                  <div className="opacity-80 line-clamp-2 italic text-[11px]">
+                    {msg.replyTo.text}
+                  </div>
+                </div>
+              )}
               {msg.text && msg.text !== msg.fileUrl && <div className="max-w-full break-words">{msg.text}</div>}
               {msg.fileUrl && (
                 <div className={`${msg.text && msg.text !== msg.fileUrl ? 'mt-2' : ''} relative`}>

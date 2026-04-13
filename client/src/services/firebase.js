@@ -2,15 +2,14 @@ import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
 };
 
-// Only initialize if config is present
 let app = null;
 let messaging = null;
 
@@ -26,16 +25,9 @@ try {
   console.error("❌ Firebase init error:", err);
 }
 
-/**
- * Request notification permission and get FCM token.
- * Returns the token string or null on failure.
- */
 export async function requestNotificationPermission() {
   try {
-    if (!messaging) {
-      console.warn("⚠️ Firebase messaging not available");
-      return null;
-    }
+    if (!messaging) return null;
 
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
@@ -49,7 +41,14 @@ export async function requestNotificationPermission() {
       return null;
     }
 
-    const token = await getToken(messaging, { vapidKey });
+    // Pass environment variables to Service Worker via query params
+    const swUrl = `/firebase-messaging-sw.js?` + new URLSearchParams(firebaseConfig).toString();
+    const registration = await navigator.serviceWorker.register(swUrl);
+    
+    // Wait for the service worker to become ready
+    await navigator.serviceWorker.ready;
+
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
     
     if (token) {
       console.log("🔔 FCM token obtained");
@@ -57,7 +56,6 @@ export async function requestNotificationPermission() {
       return token;
     }
 
-    console.warn("⚠️ No FCM token received");
     return null;
   } catch (err) {
     console.error("❌ FCM token error:", err);
@@ -65,10 +63,6 @@ export async function requestNotificationPermission() {
   }
 }
 
-/**
- * Listen for foreground push messages.
- * Calls the provided callback with the notification payload.
- */
 export function onForegroundMessage(callback) {
   if (!messaging) return () => {};
 

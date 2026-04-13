@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Home from './components/Home';
 import ChatRoom from './components/ChatRoom';
+import { requestNotificationPermission } from "./services/firebase";
 
 function App() {
   React.useEffect(() => {
@@ -12,6 +13,9 @@ function App() {
 
     setRealHeight();
     window.addEventListener("resize", setRealHeight);
+
+    // 🔥 ADD THIS LINE (THIS IS YOUR MISSING PIECE)
+    requestNotificationPermission();
 
     return () => window.removeEventListener("resize", setRealHeight);
   }, []);

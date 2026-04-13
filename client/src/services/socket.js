@@ -1,8 +1,19 @@
 import { io } from 'socket.io-client';
 
-// Use env variable, fallback to hardcoded Render URL
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://lumo-backend-eknu.onrender.com";
+const getBackendUrl = () => {
+  try {
+    const url = import.meta.env?.VITE_BACKEND_URL;
+    if (url && typeof url === 'string' && url.startsWith('http')) {
+      return url;
+    }
+  } catch (err) {
+    console.warn("Env access blocked:", err);
+  }
+  // Safe default fallback
+  return "https://lumo-backend-eknu.onrender.com";
+};
 
+const BACKEND_URL = getBackendUrl();
 console.log("🔌 Socket target:", BACKEND_URL);
 
 export const socket = io(BACKEND_URL, {
@@ -11,10 +22,12 @@ export const socket = io(BACKEND_URL, {
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
+  timeout: 20000,
   transports: ["websocket", "polling"],
+  forceNew: false, // Ensures socket isn't repeatedly duplicated on simple disconnects
+  withCredentials: true,
 });
 
-// Debug connection events
 socket.on("connect", () => {
   console.log("✅ Socket connected:", socket.id);
 });
@@ -25,22 +38,15 @@ socket.on("connect_error", (err) => {
 
 socket.on("disconnect", (reason) => {
   console.warn("⚠️ Socket disconnected:", reason);
-});
-
-socket.on("reconnect_attempt", (attempt) => {
-  console.log(`🔄 Reconnect attempt #${attempt}`);
-});
-
-socket.on("reconnect", (attempt) => {
-  console.log(`✅ Reconnected after ${attempt} attempts`);
+  if (reason === "io server disconnect") {
+    // Disconected by server, manual reconnect required
+    socket.connect();
+  }
 });
 
 export const connectSocket = () => {
   if (!socket.connected) {
-    console.log("🔌 Connecting socket...");
     socket.connect();
-  } else {
-    console.log("✅ Socket already connected:", socket.id);
   }
 };
 
@@ -48,6 +54,5 @@ export const disconnectSocket = () => {
   if (socket.connected) {
     socket.emit('leave_room');
     socket.disconnect();
-    console.log("🔌 Socket disconnected by user");
   }
 };
